@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="24dp">
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="@string/app_name" android:textColor="@color/text" android:textSize="32sp" android:textStyle="bold" />
+        <TextView style="@style/Note" android:text="@string/intro" />
+
+        <!-- Status -->
+        <TextView style="@style/Section" android:text="@string/status" />
+        <TextView android:id="@+id/status" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:lineSpacingExtra="4dp" android:textColor="@color/text" android:textSize="16sp" />
+        <Button android:id="@+id/allowCalendar" style="@style/SecondaryButton" android:text="@string/allow_calendar" />
+        <Button android:id="@+id/sendNow" style="@style/PrimaryButton" android:text="@string/send_now" />
+
+        <!-- When to show which watchface layout -->
+        <TextView style="@style/Section" android:text="@string/on_your_watch" />
+        <!-- The three watchface layouts and when each shows (filled in by WatchSection) -->
+        <LinearLayout android:id="@+id/faces" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:baselineAligned="false" android:orientation="horizontal" />
+        <TextView style="@style/Label" android:text="@string/next_label" />
+        <Spinner android:id="@+id/nextMinutes" style="@style/Choice" />
+        <Switch android:id="@+id/todayCardDuring" style="@style/Toggle" android:text="@string/today_card_during" />
+        <TextView style="@style/Label" android:text="@string/today_card_before_label" />
+        <Spinner android:id="@+id/todayCardBefore" style="@style/Choice" />
+        <TextView style="@style/Note" android:text="@string/today_card_note" />
+
+        <!-- Nudges: the watch buzzes at chosen moments, and "get ready" for events with a place -->
+        <TextView style="@style/Section" android:text="@string/nudges" />
+        <TextView style="@style/Note" android:text="@string/nudges_note" />
+        <Switch android:id="@+id/buzzAtStart" style="@style/Toggle" android:text="@string/buzz_at_start" />
+        <Switch android:id="@+id/buzzBeforeEnd" style="@style/Toggle" android:text="@string/buzz_before_end" />
+        <Switch android:id="@+id/getReady" style="@style/Toggle" android:text="@string/get_ready" />
+        <TextView style="@style/Note" android:text="@string/get_ready_note" />
+        <LinearLayout android:id="@+id/getReadyOptions" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <Spinner android:id="@+id/getReadyMinutes" style="@style/Choice" />
+            <Switch android:id="@+id/buzzGetReady" style="@style/Toggle" android:text="@string/buzz_get_ready" />
+        </LinearLayout>
+
+        <!-- Calendars -->
+        <TextView style="@style/Section" android:text="@string/calendars" />
+        <LinearLayout android:id="@+id/calendarList" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <!-- Weather -->
+        <TextView style="@style/Section" android:text="@string/weather" />
+        <Switch android:id="@+id/weatherSwitch" style="@style/Toggle" android:text="@string/weather_switch" />
+        <TextView style="@style/Note" android:text="@string/weather_note" />
+        <EditText android:id="@+id/city" style="@style/Field" android:importantForAutofill="no" android:hint="@string/city" android:inputType="textCapWords" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+            <EditText android:id="@+id/latitude" style="@style/Field" android:layout_width="0dp" android:layout_weight="1"
+                android:importantForAutofill="no" android:hint="@string/latitude" android:inputType="numberDecimal|numberSigned" />
+            <EditText android:id="@+id/longitude" style="@style/Field" android:layout_width="0dp" android:layout_weight="1"
+                android:importantForAutofill="no" android:hint="@string/longitude" android:inputType="numberDecimal|numberSigned" />
+        </LinearLayout>
+
+        <!-- What was sent -->
+        <TextView style="@style/Section" android:text="@string/sent" />
+        <TextView android:id="@+id/agenda" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:background="@color/card" android:fontFamily="monospace" android:padding="12dp"
+            android:textColor="@color/lime" android:textIsSelectable="true" android:textSize="13sp" />
+        <TextView style="@style/Note" android:text="@string/sent_note" />
+    </LinearLayout>
+</ScrollView>

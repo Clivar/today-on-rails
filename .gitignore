@@ -1,0 +1,22 @@
+# Dependencies and generated files
+node_modules/
+build/
+watchface/dist/
+watchface/assets/
+watchface/src/data/demo-name.js
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+
+# Signing key: never commit; back it up somewhere safe (updates need the same key)
+android/release.jks
+android/keystore.properties
+*.jks
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store

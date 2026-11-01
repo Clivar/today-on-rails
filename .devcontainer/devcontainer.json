@@ -1,0 +1,21 @@
+// Dev container with everything needed to build and test both parts (see tools/setup.sh).
+{
+	"name": "Today On Rails",
+	"image": "mcr.microsoft.com/devcontainers/base:trixie",
+	"features": {
+		"ghcr.io/devcontainers/features/node:1": {},
+		"ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": ["Anthropic.claude-code"]
+		}
+	},
+	"containerEnv": {
+		"ANDROID_HOME": "/home/vscode/android-sdk",
+		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+		"DISABLE_AUTOUPDATER": "1"
+	},
+	// Clones the Gadgetbridge submodule and installs the build tools
+	"postCreateCommand": "git submodule update --init && tools/setup.sh"
+}

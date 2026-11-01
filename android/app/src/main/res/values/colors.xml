@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ink & Lime, same palette as the watchface -->
+    <color name="bg">#000000</color>
+    <color name="card">#151913</color>
+    <color name="text">#F3F5EF</color>
+    <color name="muted">#9EA39A</color>
+    <color name="hint">#767A73</color>
+    <color name="outline">#3A3E38</color>
+    <color name="lime">#B6F35A</color>
+    <color name="on_lime">#0A0D05</color>
+</resources>

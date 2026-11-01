@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Today On Rails</string>
+    <string name="intro">Puts your calendar on the Today On Rails watchface, through Gadgetbridge. Your calendar never leaves the phone.</string>
+
+    <string name="status">Status</string>
+    <string name="allow_calendar">Allow calendar access</string>
+    <string name="send_now">Send now</string>
+    <string name="sending">Sending…</string>
+    <string name="status_gadgetbridge_ok">Gadgetbridge: found</string>
+    <string name="status_gadgetbridge_missing">Gadgetbridge: not installed</string>
+    <string name="status_calendar_ok">Calendar access: allowed</string>
+    <string name="status_calendar_missing">Calendar access: not allowed yet</string>
+    <string name="status_last_sync">Last update: %1$s</string>
+    <string name="status_never">never</string>
+
+    <string name="on_your_watch">On your watch</string>
+    <string name="next_label">Show the next event from</string>
+    <string name="today_card_during">Today card while an event is on</string>
+    <string name="today_card_before_label">Today card before an event</string>
+    <string name="face_clock">Clock</string>
+    <string name="face_next">Next</string>
+    <string name="face_today_card">Today card</string>
+    <string name="face_clock_when">When nothing is coming up</string>
+    <string name="face_next_when">From %1$s before an event</string>
+    <string name="face_today_card_when_off">Off</string>
+    <string name="face_today_card_when_during">During events</string>
+    <string name="face_today_card_when_before">%1$s before</string>
+    <string name="face_today_card_when_both">During events and %1$s before</string>
+    <string name="today_card_note">The Today card shows one event large, with what comes after it. It helps to stay on track, during an event or just before one. The rest of the time the watch shows a big clock.</string>
+
+    <string name="nudges">Nudges</string>
+    <string name="nudges_note">The watch buzzes by itself at these moments, while its screen is on or dimmed (always-on). With the screen fully off it can\'t, so a buzz can be missed then. No notifications involved.</string>
+    <string name="buzz_at_start">Buzz when an event starts</string>
+    <string name="buzz_before_end">Buzz 5 minutes before an event ends</string>
+    <string name="get_ready">Get ready for events with a place</string>
+    <string name="get_ready_note">When an event has a location, the Today card shows "Get ready" earlier, so there\'s time to get going.</string>
+    <string name="buzz_get_ready">Buzz when it\'s time to get ready</string>
+    <string name="face_today_card_when_place">%1$s · at a place: %2$s before</string>
+
+    <string name="calendars">Calendars</string>
+    <string name="calendars_none">No calendars found. Add a Google account to the phone, or allow calendar access.</string>
+
+    <string name="weather">Weather</string>
+    <string name="weather_switch">Show the weather (uses the internet)</string>
+    <string name="weather_note">The forecast comes from Open-Meteo: only the coordinates below are sent, no account needed. Without it the watchface hides the temperature. Turn off Breezy Weather\'s Gadgetbridge option: only one app can send weather.</string>
+    <string name="city">City shown in the watch\'s weather app</string>
+    <string name="latitude">Latitude</string>
+    <string name="longitude">Longitude</string>
+
+    <string name="sent">Sent to the watch</string>
+    <string name="sent_note">The watch picks up new data on its own weather update, usually within 30 minutes.</string>
+
+    <string-array name="next_choices">
+        <item>30 minutes before</item>
+        <item>1 hour before</item>
+        <item>2 hours before</item>
+        <item>3 hours before</item>
+        <item>6 hours before</item>
+        <item>12 hours before</item>
+    </string-array>
+    <string-array name="get_ready_choices">
+        <item>30 minutes before</item>
+        <item>1 hour before</item>
+        <item>1½ hours before</item>
+        <item>2 hours before</item>
+    </string-array>
+    <string-array name="today_card_before_choices">
+        <item>Off</item>
+        <item>5 minutes before</item>
+        <item>10 minutes before</item>
+        <item>15 minutes before</item>
+        <item>30 minutes before</item>
+        <item>1 hour before</item>
+    </string-array>
+</resources>

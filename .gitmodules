@@ -1,0 +1,3 @@
+[submodule "gadgetbridge"]
+	path = gadgetbridge
+	url = https://codeberg.org/Freeyourgadget/Gadgetbridge.git
