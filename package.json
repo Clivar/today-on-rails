@@ -5,10 +5,11 @@
   "description": "Today On Rails: agenda watchface for the Amazfit Bip 6 (Zepp OS) and its Android companion app",
   "scripts": {
     "postinstall": "ln -sfn @zeppos/zeus-cli/private-modules/zeppos-app-utils node_modules/zeppos-app-utils",
-    "test": "node tools/test-agenda.mjs",
+    "test": "node --test tests/",
     "build": "tools/build.sh",
     "assets": "node tools/gen-assets.mjs",
-    "metrics": "node tools/fontmetrics.cjs"
+    "metrics": "node tools/fontmetrics.cjs",
+    "test:all": "tools/test-all.sh"
   },
   "devDependencies": {
     "@zeppos/device-types": "4.0.0",

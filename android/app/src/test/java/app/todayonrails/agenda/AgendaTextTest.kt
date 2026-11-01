@@ -7,7 +7,7 @@ import org.junit.Test
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-// The watchface parses these strings (watchface/src/data/agenda.js, tests in tools/test-agenda.mjs).
+// The watchface parses these strings (watchface/src/data/agenda.js, tests in tests/watch/; shared cases: AgendaParityTest).
 class AgendaTextTest {
     private val today = LocalDate.of(2026, 10, 31)
     private val settings = WatchSettings(nextMinutes = 120, todayCardBefore = 15, todayCardDuring = true)

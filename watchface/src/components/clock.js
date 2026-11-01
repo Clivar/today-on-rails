@@ -4,7 +4,7 @@
 import ui from '@zos/ui'
 import { C, F } from '../ui/theme.js'
 import { text, cssTop, lineBox, setProps, setVisible, setAllVisible } from '../ui/widgets.js'
-import { slotLayout } from '../ui/clockSlots.js'
+import { slotLayout, glyphBox } from '../ui/clockSlots.js'
 import { AMPM_SIZE } from '../ui/clockSizes.js'
 
 export const pad = (n) => (n < 10 ? '0' : '') + n
@@ -24,7 +24,7 @@ export function createClock() {
     let g = 0
     for (const s of slots) {
       const w = s.ch === ':' ? colon : glyphs[g++]
-      setProps(w, { x: s.x, y, w: s.w, h: lineBox(size), text: s.ch, text_size: size })
+      setProps(w, { ...glyphBox(s, size), y, h: lineBox(size), text: s.ch, text_size: size })
       setVisible(w, true)
     }
     for (; g < glyphs.length; g++) setVisible(glyphs[g], false)

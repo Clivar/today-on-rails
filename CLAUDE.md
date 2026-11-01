@@ -24,15 +24,17 @@ Zepp OS typings and docs where they disagree.
 
 ```bash
 tools/setup.sh                   # once: chromium, JDK 21, adb, Android SDK 37, npm install (zeus)
-npm test                         # watch: agenda parser, layout choice, buzz timing (tools/test-agenda.mjs)
+npm test                         # watch + parity: node --test tests/ (tests/README.md)
+npm run test:all                 # everything: npm test + gradle unit tests + lintRelease
 tools/build.sh [demo]            # watch: → watchface/dist/*.zab (demo names: watchface/src/data/demos.js)
 tools/install.sh <zab>           # install on the watch through Gadgetbridge (needs the phone over adb)
 cd android && ./gradlew testDebugUnitTest lintRelease assembleRelease   # phone app
 ```
 
-Always run both test suites and lint after changes. The agenda text format is shared: change
-`android/.../agenda/AgendaText.kt` and `watchface/src/data/agenda.js` together, with tests on both sides
-(the tests use the same example strings).
+Always run `npm run test:all` after changes. The agenda text format is shared: change
+`android/.../agenda/AgendaText.kt` and `watchface/src/data/agenda.js` together and add/update a case in
+`tests/parity/cases.json` — both sides run every case (`AgendaParityTest.kt`, `parity.test.mjs`).
+`package.json` is `"type": "module"`: Node scripts that use `require` must be `.cjs`.
 
 ## Architecture in one paragraph
 
@@ -67,6 +69,9 @@ parses it, picks a layout (`chooseLayout`) and buzzes at chosen moments (`dueBuz
 - `IMG_TIME` gives every digit a **fixed-width slot** (width of the digit images; `hour_space` between).
   The normal clock therefore also uses fixed slots (`ui/clockSlots.js`) so both line up exactly; AM/PM
   are `am_x/am_y` images at a fixed spot (`ui/clockSizes.js`).
+- A TEXT box **narrower than its glyph** is not centred: the watch shifts the text, so "0"/"4" (a bit
+  wider than a digit slot) slid sideways. Digit boxes are the slot plus padding on both sides
+  (`glyphBox`), tested in `tests/watch/clock.test.mjs`; the always-on digit images are flex-centred.
 - The watch **vibrates from a watchface**: `new Vibrator().start({ mode: VIBRATOR_SCENE_NOTIFICATION })`
   (`@zos/sensor`), no permission. Works while lit or in AOD.
 - `launchApp` from a watchface works (`SYSTEM_APP_VOICE_MEMO`, `native: true`); `launchApp` takes no params.

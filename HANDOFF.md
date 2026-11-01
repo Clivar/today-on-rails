@@ -3,7 +3,7 @@
 Where things stand and how to pick it up. Read README.md (what it is, how to build) and CLAUDE.md
 (device facts, testing loop, the owner's preferences) first.
 
-## Status (2026-10-31)
+## Status (2026-11-01)
 
 **Done and verified on the real watch and phone:**
 
@@ -20,7 +20,9 @@ Where things stand and how to pick it up. Read README.md (what it is, how to bui
 - Android app **Today On Rails 1.0.0** (`app.todayonrails`), release-signed, installed on the owner's phone:
   calendar selection, layout settings with drawings of each layout, nudges, weather (Open-Meteo, optional),
   battery-friendly sync. Three permissions, no dependencies, lint clean.
-- Tests: `npm test` (17, watch side), `./gradlew testDebugUnitTest` (8, phone side).
+- Tests (`npm run test:all`, see tests/README.md): parity cases shared by both sides
+  (`tests/parity/cases.json`, 6 cases), watchface 21 + 6 parity, phone 8 + parity; lint clean.
+- 2026-11-01: fixed minute digits sliding sideways ("0"/"4" were wider than their text boxes).
 
 **Owner's setup:** Amazfit Bip 6, Pixel (GrapheneOS), Gadgetbridge 0.95.1 (F-Droid build). Watch display:
 Always On Display "Automatic (sleep detection)", "Style follows Watchface". Gadgetbridge has no notification

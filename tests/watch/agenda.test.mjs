@@ -1,11 +1,12 @@
-// Tests for the watch-side agenda parser and layout choice: node tools/test-agenda.mjs
-// The strings are what the phone app builds (android AgendaTextTest uses the same examples).
+// Watch side: agenda parsing, layout choice, buzz timing, formatting. Run: npm test
+// (What the phone writes vs what the watch reads is checked separately: tests/parity/.)
+import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   parseAgenda, chooseLayout, itemsAfter, freeUntil, formatIn, formatLeft, formatSpan, railTarget, isWrappingUp,
   DEFAULT_SETTINGS,
-} from '../watchface/src/data/agenda.js'
-import { dueBuzz } from '../watchface/src/data/buzzes.js'
+} from '../../watchface/src/data/agenda.js'
+import { dueBuzz } from '../../watchface/src/data/buzzes.js'
 
 const AGENDA =
   'Brussels · 30/10 · C23:00-01:00 Night shift · 31/10 · cfg next=120 focus=15 during=1 ready=60 buzz=start+end+ready · ' +
@@ -13,13 +14,6 @@ const AGENDA =
 const at = (hours, minutes, day = 31, s = AGENDA) => {
   const agenda = parseAgenda(s, { year: 2026, month: 10, day, hours, minutes })
   return { agenda, ...chooseLayout(agenda) }
-}
-
-let passed = 0
-const test = (name, fn) => {
-  fn()
-  passed++
-  console.log('ok -', name)
 }
 
 test('settings are read', () => {
@@ -137,4 +131,3 @@ test('no buzz settings from the phone: the watch stays quiet', () => {
   assert.equal(dueBuzz(parseAgenda('X · 31/10 · C09:00-10:00 Gym', { year: 2026, month: 10, day: 31, hours: 9, minutes: 0 })), null)
 })
 
-console.log(`\n${passed} tests passed`)

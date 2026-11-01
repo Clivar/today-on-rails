@@ -50,6 +50,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    testOptions {
+        // The parity cases shared with the watchface tests (tests/parity/cases.json)
+        unitTests.all { it.systemProperty("parity.cases", rootProject.file("../tests/parity/cases.json").absolutePath) }
+    }
+
     lint {
         abortOnError = true
         // Gradle/AGP/target SDK versions are pinned to match Gadgetbridge
@@ -60,4 +65,5 @@ android {
 dependencies {
     // Tests only; the app itself has no dependencies
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20250517") // android.jar's org.json is only a stub on the JVM
 }

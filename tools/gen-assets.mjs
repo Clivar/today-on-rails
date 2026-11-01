@@ -44,10 +44,11 @@ function shoot(name, w, h, html) {
 }
 
 // A glyph centred in a box of w px, baseline at 1.0em in a 1.2em-high box — the same box model as
-// the TEXT widgets on the watch, so images and text line up
+// the TEXT widgets on the watch, so images and text line up. Flex centring keeps glyphs that are a
+// little wider than the box ("0", "4") centred too (text-align would push them to the left).
 function glyph(name, ch, family, size, w, style) {
   const line = Math.round(size * 1.2)
-  shoot(name, w, line, `<div style="font: 600 ${size}px/${line}px ${family}; width:${w}px; height:${line}px; text-align:center; ${style}">${ch}</div>`)
+  shoot(name, w, line, `<div style="font: 600 ${size}px/${line}px ${family}; width:${w}px; height:${line}px; display:flex; justify-content:center; ${style}"><span>${ch}</span></div>`)
 }
 
 // ── Icons (SVG from the design boards) ─────────────────────────────────────────

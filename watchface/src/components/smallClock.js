@@ -3,7 +3,7 @@
 import ui from '@zos/ui'
 import { F } from '../ui/theme.js'
 import { text, cssTop, lineBox, setProps, setVisible, setAllVisible } from '../ui/widgets.js'
-import { slotLayout } from '../ui/clockSlots.js'
+import { slotLayout, glyphBox } from '../ui/clockSlots.js'
 import { SMALL_CLOCK } from '../ui/clockSizes.js'
 import { hourText, pad } from './clock.js'
 
@@ -18,7 +18,7 @@ export function createSmallClock(color) {
       const slots = slotLayout(`${hourText(now.hours, is24)}:${pad(now.minutes)}`, 'semibold', size, left)
       glyphs.forEach((w, i) => {
         setVisible(w, i < slots.length)
-        if (i < slots.length) setProps(w, { x: slots[i].x, w: slots[i].w, h: lineBox(size), text: slots[i].ch })
+        if (i < slots.length) setProps(w, { ...glyphBox(slots[i], size), h: lineBox(size), text: slots[i].ch })
       })
     },
     setVisible: (on) => setAllVisible(glyphs, on),

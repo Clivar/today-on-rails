@@ -13,6 +13,24 @@ Gadgetbridge has no direct data channel to a watchface, so the agenda travels in
 location name**: the phone app sends a weather report whose "city" is the agenda text, and the
 watchface reads it back.
 
+## Screenshots
+
+Taken on a real Amazfit Bip 6 (demo agenda).
+
+| Nothing coming up | Next event | Today card, during an event | Last 5 minutes |
+|:-:|:-:|:-:|:-:|
+| <img src="screenshots/01-clear.png" width="190" alt="Big clock, Free until 6:00 PM"> | <img src="screenshots/04-next.png" width="190" alt="Next event: Water the plants in 58 min"> | <img src="screenshots/06-focus-ongoing.png" width="190" alt="Today card: Team call, 55 min left, the rail shows the time left"> | <img src="screenshots/07-focus-wrap-up.png" width="190" alt="Today card: 4 min left in orange"> |
+
+**Always-on**: the dim twins, with the clock in the same place as when the screen is lit:
+
+| Clock | Next event | Today card |
+|:-:|:-:|:-:|
+| <img src="screenshots/08-always-on-clear.png" width="190" alt="Always-on clock"> | <img src="screenshots/09-always-on-next.png" width="190" alt="Always-on next event"> | <img src="screenshots/10-always-on-focus.png" width="190" alt="Always-on Today card"> |
+
+| Free until another day | Today card before an event | Weather off |
+|:-:|:-:|:-:|
+| <img src="screenshots/02-clear-days.png" width="190" alt="Free until Monday 10:00 AM"> | <img src="screenshots/05-focus.png" width="190" alt="Today card: next in 10 min"> | <img src="screenshots/03-no-weather.png" width="190" alt="No weather: the temperature is hidden"> |
+
 ## Watchface
 
 Three layouts, each with an always-on (dim) twin that keeps the clock and text in the same place:
@@ -64,6 +82,8 @@ watchface/src/ui/
 
 ## Phone app
 
+<img src="screenshots/helper-app.png" width="280" align="right" alt="The phone app: status, Send now, and a drawing of each watchface layout with when it appears">
+
 - Reads the calendars you pick (default: all visible Google calendars) for the next 7 days, including
   events that are on right now; skips all-day, cancelled and declined events.
 - Settings: when to show the next event, the Today card during/before events, nudges, calendars, weather.
@@ -84,6 +104,8 @@ watchface/src/ui/
 - Sends right away on first start, then keeps itself up to date in the background.
 - Turn off Breezy Weather's Gadgetbridge option: only one app can send weather to Gadgetbridge.
 - No libraries; three permissions: calendar (read), internet (weather), run at startup (keep the hourly job).
+
+<br clear="right">
 
 ```
 android/app/src/main/java/app/todayonrails/
@@ -136,8 +158,11 @@ which also applies a fix for zeus 1.9.3 on Node 26).
 ```bash
 git submodule update --init      # Gadgetbridge (only needed for work on Gadgetbridge itself)
 
+# Tests (details: "Testing" below)
+npm test                         # watchface + parity, watch half
+npm run test:all                 # everything, both sides, plus Android lint
+
 # Watchface
-npm test                         # parser, layout and buzz tests
 npm run assets                   # images (needs chromium) — build.sh does this when missing
 tools/build.sh [demo]            # → watchface/dist/*.zab; demo names in watchface/src/data/demos.js
 tools/install.sh watchface/dist/*.zab
@@ -157,12 +182,35 @@ Release signing reads `android/keystore.properties` (`storeFile`, `storePassword
 PNG), `wake.sh` (Find device → back to the face), `sendweather.sh "<text>"` (fake weather broadcast).
 `tools/compare.sh` and `tools/sheet.sh` put screenshots side by side.
 
+## Testing
+
+The phone app and the watchface share nothing but the agenda text, so the tests are built around
+**parity**: [`tests/parity/cases.json`](tests/parity/cases.json) lists example days — calendar
+events and settings, the exact text the phone must write for them, and what the watch must read
+from that text. Both sides run every case:
+
+```
+events + settings ──AgendaText.kt──► text ──agenda.js──► what the watch sees
+       └── AgendaParityTest.kt ──────┘  └── parity.test.mjs ──┘
+```
+
+Change the format on one side only and a parity test fails. Around that:
+
+- `tests/watch/` — the watchface's logic: parser edge cases, which layout shows when, "Free until …",
+  buzz timing, and the clock's digit boxes (a digit wider than its box slides sideways on the watch);
+- `android/app/src/test/` — the phone's text builder: title cleaning, the size cap, buzz settings;
+- the look and the buzzes are checked on the real watch with demo builds and screenshots.
+
+`npm run test:all` (`tools/test-all.sh`) runs all of it plus Android lint. What each file covers:
+[`tests/README.md`](tests/README.md).
+
 ## Repository layout
 
 ```
 watchface/      Zepp OS watchface (zeus project)
 android/        Android companion app (Gradle, no libraries)
-tools/          build, asset generation, tests; tools/device/ drives the phone + watch over adb
+tests/         parity cases shared by both sides, watchface tests (README inside)
+tools/          build, asset generation, test-all.sh; tools/device/ drives the phone + watch over adb
 fonts/          Barlow, Barlow Condensed (OFL)
 design/         the original design boards (renders, markup specs, source HTML)
 screenshots/    real watch screenshots of every layout, and the app

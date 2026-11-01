@@ -16,4 +16,4 @@ done
 sleep 1
 out=/tmp/gbphone/${latest%.bmp}
 adb pull "$F/$latest" "$out.bmp" >/dev/null
-node $(dirname "$0")/bmp2png.js "$out.bmp" "$out.png"
+node $(dirname "$0")/bmp2png.cjs "$out.bmp" "$out.png"
