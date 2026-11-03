@@ -1,27 +1,33 @@
 // "Clear": nothing coming up soon.
 // Big clock, "Free until …" (today, tomorrow, a weekday or a date), and the full bottom row.
+// Made the first time it's shown (watchface/index.js); new widgets show by themselves, so
+// setVisible is only for switching between layouts.
 import { CLOCK } from '../ui/clockSizes.js'
 import { AVOID } from '../components/rail.js'
 import { createFreeUntil } from '../components/freeUntil.js'
 
 export function createClearLayout(frame) {
+  // Frame parts in the frame's order (layouts/frame.js), then this layout's own
+  const date = frame.date()
+  const battery = frame.battery()
+  const clock = frame.clock()
+  const complications = frame.complications()
   const freeUntil = createFreeUntil()
+  const parts = [date, battery, clock, freeUntil]
 
   return {
-    show(state) {
-      frame.date.setVisible(true)
-      frame.date.render(state)
-      frame.battery.setVisible(true)
-      frame.battery.render(state)
-      frame.clock.setVisible(true)
-      frame.clock.render(state, CLOCK.clear)
-      freeUntil.setVisible(true)
+    render(state) {
+      date.render(state)
+      battery.render(state)
+      clock.render(state, CLOCK.clear)
       freeUntil.render(state)
-      frame.complications.render(state, { compact: false })
+      complications.render(state, { compact: false })
       frame.rail.render(state, { emphasis: false, avoid: AVOID.clock })
     },
-    hide() {
-      freeUntil.setVisible(false)
+    // The bottom row shows what fits when it's drawn
+    setVisible(on) {
+      parts.forEach((part) => part.setVisible(on))
+      if (!on) complications.hide()
     },
   }
 }

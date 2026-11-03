@@ -2,6 +2,8 @@
 // Positions are proportional to distance along the path (like SVG pathLength=12),
 // starting at 12 o'clock (top centre) and running clockwise.
 // Pure geometry (no @zos imports): components/rail.js turns it into widgets; tests/watch/rail.test.mjs.
+// Parts of it run on every minute refresh: plain indexed loops, no for…of, callbacks or destructuring
+// (each costs about 0.1–0.2 ms on the watch, measured with tools/build.sh perf).
 import { W, H } from './theme.js'
 
 // The Bip 6 screen has rounded corners with an 86 px radius (Zepp device spec "rAngle").
@@ -114,9 +116,9 @@ const wrap12 = (h) => ((h % 12) + 12) % 12
 export function railPoint(h, shape = OUTER) {
   const { segs, length } = path(shape)
   let d = (wrap12(h) / 12) * length
-  for (const seg of segs) {
-    if (d <= seg.len) return seg.at(d)
-    d -= seg.len
+  for (let i = 0; i < segs.length; i++) {
+    if (d <= segs[i].len) return segs[i].at(d)
+    d -= segs[i].len
   }
   return segs[0].at(0)
 }
@@ -140,32 +142,58 @@ export function railPieces(h0, h1, shape = OUTER) {
   const pieces = []
   let start = 0
   // Twice round, so a span past 12 o'clock carries on from the start of the path
-  for (let lap = 0; lap < 2; lap++) {
-    for (const seg of segs) {
-      const a = Math.max(d0, start) - start
-      const b = Math.min(d1, start + seg.len) - start
-      if (b - a > 1e-6) pieces.push(seg.piece(a, b))
-      start += seg.len
+  for (let i = 0; i < 2 * segs.length; i++) {
+    const seg = segs[i % segs.length]
+    const a = Math.max(d0, start) - start
+    const b = Math.min(d1, start + seg.len) - start
+    if (b - a > 1e-6) {
+      const p = seg.piece(a, b)
+      // The top's two halves meet at 12 o'clock: one run
+      const q = pieces[pieces.length - 1]
+      if (q && q.kind === 'line' && p.kind === 'line' && q.x1 === p.x0 && q.y1 === p.y0) q.x1 = p.x1
+      else pieces.push(p)
     }
+    start += seg.len
   }
-  // The top's two halves meet at 12 o'clock: one run
-  return pieces.reduce((out, p) => {
-    const q = out[out.length - 1]
-    if (q && q.kind === 'line' && p.kind === 'line' && q.x1 === p.x0 && q.y1 === p.y0) q.x1 = p.x1
-    else out.push(p)
-    return out
-  }, [])
+  return pieces
 }
 
 // The two ends of a list of pieces: [[x, y] at the start, [x, y] at the end]
 export function pieceEnds(pieces) {
-  const end = (p, last) => {
-    if (p.kind === 'line') return last ? [p.x1, p.y1] : [p.x0, p.y0]
-    const a = (last ? p.to : p.from) / DEG
-    return [p.cx + p.r * Math.cos(a), p.cy + p.r * Math.sin(a)]
-  }
-  return [end(pieces[0], false), end(pieces[pieces.length - 1], true)]
+  const first = pieces[0], last = pieces[pieces.length - 1]
+  return [
+    first.kind === 'line' ? [first.x0, first.y0] : cornerPoint(first, first.from),
+    last.kind === 'line' ? [last.x1, last.y1] : cornerPoint(last, last.to),
+  ]
 }
+
+// [x, y] on a corner piece at `deg` degrees
+const cornerPoint = (p, deg) => [p.cx + p.r * Math.cos(deg / DEG), p.cy + p.r * Math.sin(deg / DEG)]
+
+// The widgets that draw an arc's pieces, `width` px thick:
+//   rects  round-ended FILL_RECT boxes: the straight runs, and a round cap on each end of the arc that is
+//          a corner (the ARC's own ends may be square; a run's round end is a cap already)
+//   arcs   ARC props for the corners (sub-pixel leftovers skipped: see arcProps)
+// All in one colour, so their order doesn't matter.
+export function arcShapes(pieces, width) {
+  const rects = [], arcs = []
+  for (let i = 0; i < pieces.length; i++) {
+    const p = pieces[i]
+    if (p.kind === 'line') rects.push(lineBox(p, width))
+    else {
+      const props = arcProps(p, width)
+      if (props) arcs.push(props)
+    }
+  }
+  if (pieces.length) {
+    const first = pieces[0], last = pieces[pieces.length - 1]
+    if (first.kind === 'corner') rects.push(capBox(cornerPoint(first, first.from), width))
+    if (last.kind === 'corner') rects.push(capBox(cornerPoint(last, last.to), width))
+  }
+  return { rects, arcs }
+}
+
+const capBox = (point, width) => discBox(point[0], point[1], width)
 
 // Widget box of a straight piece drawn `width` px thick with round ends (FILL_RECT, radius = width/2)
 export function lineBox({ x0, y0, x1, y1 }, width) {
@@ -210,12 +238,16 @@ export function arcInWindow(subject, minutes) {
 // of the edge at the top and bottom, further in on the sides where the labels are wider than tall).
 // Returns null if the label's box would cover one of the `avoid` boxes [x0, y0, x1, y1].
 export function labelSpot(h, width, avoid = []) {
-  const [px, py] = railPoint(h, INNER)
+  const point = railPoint(h, INNER)
+  const px = point[0], py = point[1]
   const dx = W / 2 - px, dy = H / 2 - py, len = Math.sqrt(dx * dx + dy * dy) || 1
   const k = Math.abs(dy) > Math.abs(dx) ? 6 : 16
   const x = px + (dx / len) * k, y = py + (dy / len) * k
-  const covers = avoid.some(([a, b, c, d]) => x - width / 2 < c && x + width / 2 > a && y - 10 < d && y + 10 > b)
-  return covers ? null : { x, y }
+  for (let i = 0; i < avoid.length; i++) {
+    const box = avoid[i] // [x0, y0, x1, y1]
+    if (x - width / 2 < box[2] && x + width / 2 > box[0] && y - 10 < box[3] && y + 10 > box[1]) return null
+  }
+  return { x, y }
 }
 
 // The numerals on the inner ring: [rail hour, text]

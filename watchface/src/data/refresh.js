@@ -16,7 +16,9 @@ export function setsForScene(scene, sceneAod) {
 
 // Everything a refresh depends on, as one string: when it's the same as last time, the screen
 // already shows it (the resume right after build, repeated wakes within a minute, a heart reading
-// with the same value). The agenda text goes last: whatever it contains, the numbers stay apart.
-export function refreshKey({ now, is24, battery, heartLast, steps, cityName }) {
-  return [minuteOf(now), is24 ? 24 : 12, battery, heartLast, steps, cityName].join('|')
+// with the same value). Battery, heart and steps only count when lit (inputs.lit): a dimmed instance
+// doesn't read or show them. The agenda text goes last: whatever it contains, the numbers stay apart.
+export function refreshKey({ now, is24, lit, battery, heartLast, steps, cityName }) {
+  const screenOn = lit ? battery + ',' + heartLast + ',' + steps : 'dim'
+  return minuteOf(now) + '|' + (is24 ? 24 : 12) + '|' + screenOn + '|' + cityName
 }

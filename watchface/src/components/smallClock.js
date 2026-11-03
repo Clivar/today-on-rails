@@ -2,7 +2,7 @@
 // clock, so the always-on small clock (drawn by the system) matches it.
 import ui from '@zos/ui'
 import { F } from '../ui/theme.js'
-import { text, cssTop, lineBox, setProps, setVisible, setAllVisible } from '../ui/widgets.js'
+import { trackedText, cssTop, lineBox, showAll } from '../ui/widgets.js'
 import { slotLayout, glyphBox } from '../ui/clockSlots.js'
 import { SMALL_CLOCK } from '../ui/clockSizes.js'
 import { hourText, pad } from './clock.js'
@@ -10,17 +10,23 @@ import { hourText, pad } from './clock.js'
 export function createSmallClock(color) {
   const { left, top, size } = SMALL_CLOCK
   const glyphs = [0, 1, 2, 3, 4].map(() =>
-    text({ x: 0, y: cssTop(top, size, 1.2), w: 10, text_size: size, font: F.semibold, color, align_h: ui.align.CENTER_H }),
+    trackedText({ x: 0, y: cssTop(top, size, 1.2), w: 10, text_size: size, font: F.semibold, color, align_h: ui.align.CENTER_H }),
   )
 
   return {
     render({ now, is24 }) {
       const slots = slotLayout(`${hourText(now.hours, is24)}:${pad(now.minutes)}`, 'semibold', size, left)
-      glyphs.forEach((w, i) => {
-        setVisible(w, i < slots.length)
-        if (i < slots.length) setProps(w, { ...glyphBox(slots[i], size), h: lineBox(size), text: slots[i].ch })
-      })
+      for (let i = 0; i < glyphs.length; i++) {
+        if (i >= slots.length) {
+          glyphs[i].show(false)
+          continue
+        }
+        const box = glyphBox(slots[i], size) // a fresh { x, w }: filled in, not copied (spreads are slow)
+        box.h = lineBox(size)
+        box.text = slots[i].ch
+        glyphs[i].place(box)
+      }
     },
-    setVisible: (on) => setAllVisible(glyphs, on),
+    setVisible: (on) => showAll(glyphs, on),
   }
 }

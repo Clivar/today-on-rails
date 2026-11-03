@@ -44,7 +44,7 @@ export function minuteOf(now) {
 }
 
 function parseSettings(part) {
-  const s = { ...DEFAULT_SETTINGS }
+  const s = Object.assign({}, DEFAULT_SETTINGS) // not { ...x }: object spread is slow on the watch
   for (const kv of part.split(' ').slice(1)) {
     const [k, v] = kv.split('=')
     const n = Number(v)
@@ -68,7 +68,7 @@ export function parseAgenda(cityName, now) {
   const parts = (cityName || '').split(SEP)
   const result = {
     city: parts[0] || '', items: [], justPast: [], valid: false, weather: !parts.includes(NO_WEATHER),
-    settings: { ...DEFAULT_SETTINGS },
+    settings: Object.assign({}, DEFAULT_SETTINGS),
   }
   if (parts.length < 2 || !DATE.test(parts[1])) return result
 

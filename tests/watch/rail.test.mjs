@@ -1,12 +1,20 @@
 // The rail's geometry (watchface/src/ui/railGeometry.js): the arc as a few smooth pieces, every mark
 // well inside the visible screen (its edge clipped dots on the watch), and the arc's time window.
+// At the end, the rail's widgets (components/rail.js, alwaysOnRail.js with mocked @zos, zosMock.mjs):
+// created on demand, and still stacked in the right order.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { W, H } from '../../watchface/src/ui/theme.js'
+import { W, H, C } from '../../watchface/src/ui/theme.js'
 import {
-  railPoint, railPieces, pieceEnds, lineBox, discBox, arcProps, ringProps, tickBox, hourLength, arcInWindow,
+  railPoint, railPieces, pieceEnds, arcShapes, lineBox, discBox, arcProps, ringProps, tickBox, hourLength, arcInWindow,
   SCREEN_CORNER, OUTER, INNER, TICK_HOURS, NUMERALS, MARK, ARC_WIDTH, RING_WIDTH, DEVICE,
 } from '../../watchface/src/ui/railGeometry.js'
+import { installZosMock } from './zosMock.mjs'
+
+const zos = installZosMock()
+const { createRail } = await import('../../watchface/src/components/rail.js')
+const { createAlwaysOnRail } = await import('../../watchface/src/components/alwaysOnRail.js')
+const { withWidgetLevel } = await import('../../watchface/src/ui/widgets.js')
 
 const MARGIN = 4 // px every visible shape keeps from the screen's edge
 const MINUTES = Array.from({ length: 720 }, (_, i) => i / 60) // every minute round the rail
@@ -65,7 +73,7 @@ test('arc pieces: straight runs are level or upright, corners turn clockwise wit
   }
 })
 
-test('a span under 12 hours needs at most 5 runs and 5 corners (the widgets created for an arc)', () => {
+test('a span under 12 hours needs at most 5 runs and 5 corners (an arc stays a few widgets)', () => {
   for (const [h0, h1] of SPANS) {
     const pieces = railPieces(h0, h1 % 12)
     assert.ok(pieces.filter((p) => p.kind === 'line').length <= 5, `${h0}→${h1}`)
@@ -192,4 +200,130 @@ test('no ARC collapses to start === end: sub-pixel corner leftovers are skipped,
       }
     }
   }
+})
+
+test('an arc\'s widgets: a box per run, an ARC per corner, a round cap only where an end is a corner', () => {
+  for (const [h0, h1] of SPANS) {
+    const pieces = railPieces(h0, h1 % 12)
+    const { rects, arcs } = arcShapes(pieces, ARC_WIDTH)
+    const runs = pieces.filter((p) => p.kind === 'line')
+    const corners = pieces.filter((p) => p.kind === 'corner')
+    const caps = (pieces[0].kind === 'corner') + (pieces[pieces.length - 1].kind === 'corner')
+    assert.deepEqual(rects.slice(0, runs.length), runs.map((p) => lineBox(p, ARC_WIDTH)))
+    assert.equal(rects.length, runs.length + caps)
+    assert.deepEqual(arcs, corners.map((p) => arcProps(p, ARC_WIDTH)).filter(Boolean))
+    // The ends are round: a run's own end, or a cap centred on the end
+    const ends = pieceEnds(pieces)
+    for (const [i, last] of [[0, false], [1, true]]) {
+      const p = last ? pieces[pieces.length - 1] : pieces[0]
+      if (p.kind === 'line') continue
+      const cap = rects.find((r) => close(r.x + r.w / 2, Math.round(ends[i][0] - ARC_WIDTH / 2) + ARC_WIDTH / 2) &&
+        close(r.y + r.h / 2, Math.round(ends[i][1] - ARC_WIDTH / 2) + ARC_WIDTH / 2) && r.w === ARC_WIDTH && r.h === ARC_WIDTH)
+      assert.ok(cap && cap.radius === ARC_WIDTH / 2, `${h0}→${h1}: no cap at ${last ? 'the end' : 'the start'}`)
+    }
+  }
+  assert.deepEqual(arcShapes([], ARC_WIDTH), { rects: [], arcs: [] })
+})
+
+// ── The rail's widgets ────────────────────────────────────────────────────────────────────────────
+
+const ELAPSED = 0x4a6b22
+const MINUTE = 60000
+
+// A rail state at `now` (minutes since midnight) with an event [start, end) and reminders at `reminders`
+function railState(now, { start, end, reminders = [], emphasis = true }) {
+  const at = (min) => ({ hours: Math.floor(min / 60) % 24, minutes: min % 60 })
+  const event = { kind: 'calendar', ...at(start), inMin: start - now, ongoing: start <= now && now < end }
+  Object.assign(event, { endHours: at(end).hours, endMinutes: at(end).minutes, endInMin: end - now })
+  const items = [event, ...reminders.map((m) => ({ kind: 'reminder', ...at(m), inMin: m - now, ongoing: false }))]
+    .filter((it) => it.inMin >= 0 || it.ongoing)
+  const subject = items.find((it) => it === event) || null
+  return {
+    state: { now: at(now), is24: true, agenda: { items, settings: { rail: 240 } }, subject },
+    options: { emphasis, avoid: [] },
+  }
+}
+
+// The rail's visible widgets bottom to top, named by layer
+function layers(widgets) {
+  const shown = widgets.filter((w) => w.props.visible !== false)
+  const arcColor = (w) => w.props.color === ELAPSED || w.props.color === C.lime
+  const arcRect = (w) => w.type === 'FILL_RECT' && arcColor(w) && w.props.radius === ARC_WIDTH / 2 &&
+    Math.min(w.props.w, w.props.h) === ARC_WIDTH
+  return shown.map((w) => {
+    if (w.type === 'STROKE_RECT') return 'ring'
+    if (w.type === 'TEXT') return w.props.w === 80 ? 'label' : 'numeral'
+    if (w.props.color === C.tick) return 'tick'
+    if (w.type === 'ARC' || arcRect(w)) return w.props.color === ELAPSED ? 'elapsed' : 'lime'
+    return 'mark'
+  })
+}
+// Created just to be hidden: only a reminder dot's unused hole (see createMark); hidden by the label:
+// ticks and numerals near it
+const onlyCoveredOrHoles = (widgets) => widgets.filter((w) => w.props.visible === false).every((w) =>
+  (w.props.color === C.bg && w.props.w === 2) || w.props.color === C.tick || (w.type === 'TEXT' && w.props.w === 40))
+const ORDER = ['ring', 'tick', 'numeral', 'elapsed', 'lime', 'mark', 'label']
+const inOrder = (names) => names.every((n, i) => i === 0 || ORDER.indexOf(names[i - 1]) <= ORDER.indexOf(n))
+
+test('rail widgets: no arc, no arc widgets', () => {
+  zos.newInstance()
+  const rail = createRail()
+  const { state, options } = railState(9 * 60, { start: 14 * 60, end: 15 * 60, reminders: [10 * 60] })
+  rail.render(state, Object.assign(options, { emphasis: false }))
+  assert.equal(zos.widgets.filter((w) => w.type === 'ARC').length, 0)
+  assert.deepEqual(layers(zos.widgets).filter((n) => n === 'elapsed' || n === 'lime'), [])
+  assert.ok(onlyCoveredOrHoles(zos.widgets), 'nothing hidden but the dots\' unused holes and what the label covers')
+  assert.ok(zos.widgets.every((w) => w.props.show_level === 'ONLY_NORMAL'))
+})
+
+test('rail widgets stay stacked in order while the pools grow, minute by minute', () => {
+  // An event 9:00–11:30, from 8:30 (lime arc to its start) to its end (elapsed arc growing through the
+  // top-left corner, lime arc shrinking), with dots coming onto the rail
+  const event = { start: 9 * 60, end: 11 * 60 + 30, reminders: [10 * 60 + 5, 12 * 60, 13 * 60 + 40, 20 * 60] }
+  const arcWidgets = (h0, h1) => {
+    const shapes = arcShapes(railPieces(h0, h1), ARC_WIDTH)
+    return shapes.rects.length + shapes.arcs.length
+  }
+  const count = (names, name) => names.filter((n) => n === name).length
+  const seen = {}
+  zos.newInstance()
+  const rail = createRail()
+  for (let now = 8 * 60 + 30; now < event.end; now++) {
+    const { state, options } = railState(now, event)
+    rail.render(state, options)
+    const names = layers(zos.widgets)
+    assert.ok(inOrder(names), `${now} min: ${names.join(' ')}`)
+    const nowH = now / 60 - 12 * Math.floor(now / 720)
+    const ongoing = now >= event.start
+    assert.equal(count(names, 'lime'), arcWidgets(nowH, ongoing ? 11.5 : 9), `${now} min: lime`)
+    assert.equal(count(names, 'elapsed'), ongoing ? arcWidgets(9, nowH) : 0, `${now} min: elapsed`)
+    assert.equal(count(names, 'label'), 1, `${now} min: label`)
+    if (now % 7 === 0) seen[now] = names
+  }
+  // The arcs grew after the dots and the label were made: those were made again on top
+  assert.ok(zos.widgets.filter((w) => w.type === 'TEXT' && w.props.w === 80).length > 1, 'the pools did grow')
+
+  // The face is rebuilt on every wake: a fresh rail shows the same, from fewer widgets
+  for (const [now, names] of Object.entries(seen)) {
+    zos.newInstance()
+    const { state, options } = railState(Number(now), event)
+    createRail().render(state, options)
+    assert.deepEqual(layers(zos.widgets), names, `${now} min: a fresh rail`)
+    assert.ok(onlyCoveredOrHoles(zos.widgets), `${now} min: nothing hidden but unused holes and what the label covers`)
+  }
+})
+
+test('the always-on rail creates its dot and label at the always-on level, only when there is an event', () => {
+  zos.newInstance()
+  const rail = withWidgetLevel('alwaysOn', () => createAlwaysOnRail())
+  assert.equal(zos.widgets.length, 3) // the numerals
+  rail.render({ now: { hours: 9, minutes: 0 }, is24: true, subject: null, agenda: { items: [] } }, { avoid: [] })
+  assert.equal(zos.widgets.length, 3)
+  const { state } = railState(9 * 60 + 10, { start: 9 * 60, end: 10 * 60 + 45 })
+  rail.render(state, { avoid: [] })
+  assert.deepEqual(zos.widgets.map((w) => w.type), ['TEXT', 'TEXT', 'TEXT', 'FILL_RECT', 'TEXT'])
+  assert.ok(zos.widgets.every((w) => w.props.show_level === 'ONAL_AOD'))
+  const [x, y] = railPoint(10.75, OUTER)
+  assert.deepEqual(zos.widgets[3].props, Object.assign(discBox(x, y, MARK.alwaysOn.d), { color: C.aodLime, show_level: 'ONAL_AOD' }))
+  assert.equal(zos.widgets[4].props.text, '10:45')
 })

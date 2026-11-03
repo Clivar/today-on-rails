@@ -4,7 +4,8 @@
 #   tools/build.sh <test>   a test build: the face with its agenda from tools/test-builds/<test>.js
 #                           (computed on the watch) instead of from the phone → build/test-<test>/dist/
 # A test build is made in a copy of watchface/ with the agenda source swapped (src/data/agendaSource.js):
-# no test code ever enters the source or the real build. It keeps the appId, so installing it replaces
+# no test code ever enters the source or the real build (a test with a tools/test-builds/<test>/instrument.mjs,
+# like perf, also rewrites the copy to measure it). It keeps the appId, so installing it replaces
 # the face and installing the real build puts the face back.
 set -e
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -37,6 +38,8 @@ if [ -n "$TEST" ]; then
     app.app.appName = name
     app.i18n["en-US"].name = name
     fs.writeFileSync(file, JSON.stringify(app, null, 2) + "\n")' "$P/app.json" "$TEST"
+  # A test that measures the face itself changes the copy further (tools/test-builds/<test>/instrument.mjs)
+  if [ -f "$TESTS/$TEST/instrument.mjs" ]; then node "$TESTS/$TEST/instrument.mjs" "$P" >/dev/null; fi
 fi
 
 A="$P/assets/bip6"

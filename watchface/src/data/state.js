@@ -5,8 +5,16 @@ import { Time, Battery, HeartRate, Step, TIME_HOUR_FORMAT_24 } from '@zos/sensor
 import { parseAgenda, chooseLayout } from './agenda.js'
 import { readAgendaText } from './agendaSource.js'
 
+// Battery, heart rate and steps show only on the lit screen: their sensors are made with the normal
+// widget set (addScreenOnSensors), so a dimmed instance never makes or reads them.
 export function createSensors() {
-  return { time: new Time(), battery: new Battery(), heart: new HeartRate(), steps: new Step() }
+  return { time: new Time(), battery: null, heart: null, steps: null }
+}
+
+export function addScreenOnSensors(sensors) {
+  sensors.battery = new Battery()
+  sensors.heart = new HeartRate()
+  sensors.steps = new Step()
 }
 
 export function is24h(time) {
@@ -53,17 +61,18 @@ function readHeart(sensor, last, now) {
   return { value: resting > 0 ? resting : last, fresh: false }
 }
 
-// The raw readings, cheap to take: data/refresh.js compares them to skip a refresh with nothing new
+// The raw readings, cheap to take: data/refresh.js compares them to skip a refresh with nothing new.
+// lit: the screen-on sensors are there (addScreenOnSensors); without them battery, heart and steps stay 0.
 export function readInputs(sensors) {
   const now = readNow(sensors.time)
-  return {
-    now,
-    is24: is24h(sensors.time),
-    battery: sensors.battery.getCurrent(),
-    heartLast: sensors.heart.getLast(),
-    steps: sensors.steps.getCurrent(),
-    cityName: readAgendaText(now),
+  const inputs = { now, is24: is24h(sensors.time), lit: !!sensors.heart, battery: 0, heartLast: 0, steps: 0, cityName: '' }
+  if (inputs.lit) {
+    inputs.battery = sensors.battery.getCurrent()
+    inputs.heartLast = sensors.heart.getLast()
+    inputs.steps = sensors.steps.getCurrent()
   }
+  inputs.cityName = readAgendaText(now)
+  return inputs
 }
 
 // The readings → what the screens show
@@ -80,8 +89,8 @@ export function readState(inputs, sensors) {
     ready: !!ready, // the "get ready" Today card (an event with a place)
     weather: agenda.weather,
     battery: inputs.battery,
-    // Freshness needs today's per-minute list: read only when the screen is redrawn
-    heart: readHeart(sensors.heart, inputs.heartLast, now), // { value, fresh }
+    // Freshness needs today's per-minute list: read only when the lit screen is redrawn
+    heart: inputs.lit ? readHeart(sensors.heart, inputs.heartLast, now) : null, // { value, fresh }
     steps: inputs.steps,
   }
 }

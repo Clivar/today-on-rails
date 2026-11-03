@@ -3,23 +3,30 @@
 // images/aod156, aod148, aodsmall).
 // One per place a clock can be — the big clock of "clear" and of "next", and the Today card's small
 // clock — at the same place and in the same fixed-width digit slots as its screen-on twin.
-// The layout shows the one it needs; AM/PM is also handled by the system.
+// Each is made the first time a layout shows it (an instance mostly shows one), at the always-on
+// level (watchface/index.js draws a set at its level). AM/PM is also handled by the system.
 import ui from '@zos/ui'
-import { widget, cssTop, setVisible } from '../ui/widgets.js'
+import { trackedWidget, cssTop } from '../ui/widgets.js'
 import { textWidth } from '../ui/text.js'
 import { CLOCK, AMPM_SIZE, SMALL_CLOCK } from '../ui/clockSizes.js'
 
 export function createAlwaysOnClock(is24) {
   const big = (g) => imageClock(`images/aod${g.size}/`, g.left, cssTop(g.top, g.size, 0.9), is24, g.ampm)
-  const clocks = {
-    clear: big(CLOCK.clear),
-    next: big(CLOCK.next),
-    small: imageClock('images/aodsmall/', SMALL_CLOCK.left, cssTop(SMALL_CLOCK.top, SMALL_CLOCK.size, 1.2), is24, null),
+  const create = {
+    clear: () => big(CLOCK.clear),
+    next: () => big(CLOCK.next),
+    small: () => imageClock('images/aodsmall/', SMALL_CLOCK.left, cssTop(SMALL_CLOCK.top, SMALL_CLOCK.size, 1.2), is24, null),
   }
+  const clocks = {}
+  let shown = null
 
-  // which: 'clear' | 'next' | 'small'
+  // which: 'clear' | 'next' | 'small' — shows that one, hides the one shown before (new ones show by themselves)
   function render(state, which) {
-    for (const name of Object.keys(clocks)) setVisible(clocks[name], name === which)
+    if (which === shown) return
+    if (shown) clocks[shown].show(false)
+    if (clocks[which]) clocks[which].show(true)
+    else clocks[which] = create[which]()
+    shown = which
   }
 
   return { render }
@@ -43,5 +50,5 @@ function imageClock(dir, x, y, is24, ampm) {
       pm_x: pmX, pm_y: ampm.top, pm_en_path: 'images/aodampm/pm.png', pm_sc_path: 'images/aodampm/pm.png',
     })
   }
-  return widget(ui.widget.IMG_TIME, props) // created at the always-on level (layouts/alwaysOnFrame.js)
+  return trackedWidget(ui.widget.IMG_TIME, props) // at the always-on level: the set draws at its level (watchface/index.js)
 }
