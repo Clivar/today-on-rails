@@ -10,7 +10,7 @@ class Settings(context: Context) {
 
     // Minutes before an event when the watch switches from the big clock to the "next" layout
     var nextMinutes: Int
-        get() = prefs.getInt("next_minutes", 360)
+        get() = prefs.getInt("next_minutes", DEFAULT_NEXT)
         set(v) = prefs.edit().putInt("next_minutes", v).apply()
 
     // Show the Today card while an event is ongoing
@@ -20,8 +20,14 @@ class Settings(context: Context) {
 
     // Minutes before an event when the Today card appears (0 = off)
     var todayCardBefore: Int
-        get() = prefs.getInt("today_card_before", 0)
+        get() = prefs.getInt("today_card_before", DEFAULT_TODAY_CARD_BEFORE)
         set(v) = prefs.edit().putInt("today_card_before", v).apply()
+
+    // The green rail from now to the event: drawn only when the event (its end while it's on)
+    // is at most this many minutes away; a shorter rail saves the watch's battery
+    var railMinutes: Int
+        get() = prefs.getInt("rail_minutes", DEFAULT_RAIL)
+        set(v) = prefs.edit().putInt("rail_minutes", v).apply()
 
     // ── Nudges: the watch buzzes itself at these moments ───────────────────────
 
@@ -42,7 +48,7 @@ class Settings(context: Context) {
 
     // ...this many minutes before the event
     var getReadyMinutes: Int
-        get() = prefs.getInt("get_ready_minutes", 60)
+        get() = prefs.getInt("get_ready_minutes", DEFAULT_GET_READY)
         set(v) = prefs.edit().putInt("get_ready_minutes", v).apply()
 
     // ...with a buzz when it appears
@@ -104,4 +110,12 @@ class Settings(context: Context) {
     var lastAgenda: String
         get() = prefs.getString("last_agenda", "")!!
         set(v) = prefs.edit().putString("last_agenda", v).apply()
+
+    companion object {
+        // Defaults of the dropdowns, in minutes (shown as "(default)" in the app)
+        const val DEFAULT_NEXT = 360
+        const val DEFAULT_TODAY_CARD_BEFORE = 30
+        const val DEFAULT_RAIL = 180
+        const val DEFAULT_GET_READY = 60
+    }
 }

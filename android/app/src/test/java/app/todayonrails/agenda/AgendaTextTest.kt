@@ -20,7 +20,7 @@ class AgendaTextTest {
             Event(at(31, 18, 0), at(31, 18, 0), "Water the plants"),
         )
         assertEquals(
-            "Brussels · 31/10 · cfg next=120 focus=15 during=1 ready=0 buzz=none · C09:00-10:30 Team call · R18:00 Water the plants",
+            "Brussels · 31/10 · cfg next=120 focus=15 during=1 ready=0 rail=180 buzz=none · C09:00-10:30 Team call · R18:00 Water the plants",
             AgendaText.build("Brussels", today, events, settings, withWeather = true),
         )
     }
@@ -29,7 +29,7 @@ class AgendaTextTest {
     fun `an ongoing overnight event starts the list on its own day`() {
         val events = listOf(Event(at(30, 23, 0), at(31, 1, 0), "Night shift"), Event(at(31, 9, 0), at(31, 10, 0), "Gym"))
         assertEquals(
-            "Brussels · 30/10 · cfg next=120 focus=15 during=1 ready=0 buzz=none · C23:00-01:00 Night shift · 31/10 · C09:00-10:00 Gym",
+            "Brussels · 30/10 · cfg next=120 focus=15 during=1 ready=0 rail=180 buzz=none · C23:00-01:00 Night shift · 31/10 · C09:00-10:00 Gym",
             AgendaText.build("Brussels", today, events, settings, withWeather = true),
         )
     }
@@ -38,20 +38,27 @@ class AgendaTextTest {
     fun `events with a place are marked, with the get-ready time in the settings`() {
         val s = settings.copy(getReadyMinutes = 60)
         val text = AgendaText.build("Brussels", today, listOf(Event(at(31, 14, 0), at(31, 15, 0), "Dentist", "Kerkstraat 1")), s, true)
-        assertEquals("Brussels · 31/10 · cfg next=120 focus=15 during=1 ready=60 buzz=none · C@14:00-15:00 Dentist", text)
+        assertEquals("Brussels · 31/10 · cfg next=120 focus=15 during=1 ready=60 rail=180 buzz=none · C@14:00-15:00 Dentist", text)
     }
 
     @Test
     fun `buzz moments travel in the settings`() {
         val s = settings.copy(getReadyMinutes = 60, buzzAtStart = true, buzzBeforeEnd = true, buzzGetReady = true)
         val text = AgendaText.build("Brussels", today, emptyList(), s, true)
-        assertEquals("Brussels · 31/10 · cfg next=120 focus=15 during=1 ready=60 buzz=start+end+ready", text)
+        assertEquals("Brussels · 31/10 · cfg next=120 focus=15 during=1 ready=60 rail=180 buzz=start+end+ready", text)
+    }
+
+    @Test
+    fun `the rail length travels in the settings`() {
+        val s = settings.copy(railMinutes = 30, buzzAtStart = true)
+        val text = AgendaText.build("Brussels", today, emptyList(), s, true)
+        assertEquals("Brussels · 31/10 · cfg next=120 focus=15 during=1 ready=0 rail=30 buzz=start", text)
     }
 
     @Test
     fun `no weather is marked at the end`() {
         val text = AgendaText.build("Brussels", today, emptyList(), settings, withWeather = false)
-        assertEquals("Brussels · 31/10 · cfg next=120 focus=15 during=1 ready=0 buzz=none · no weather", text)
+        assertEquals("Brussels · 31/10 · cfg next=120 focus=15 during=1 ready=0 rail=180 buzz=none · no weather", text)
     }
 
     @Test

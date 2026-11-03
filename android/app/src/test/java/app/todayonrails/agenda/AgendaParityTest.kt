@@ -26,6 +26,7 @@ class AgendaParityTest {
                 buzzAtStart = s.getBoolean("buzzAtStart"),
                 buzzBeforeEnd = s.getBoolean("buzzBeforeEnd"),
                 buzzGetReady = s.getBoolean("buzzGetReady"),
+                railMinutes = s.getInt("railMinutes"),
             )
             val json = c.getJSONArray("events")
             val events = (0 until json.length()).map { json.getJSONObject(it) }.map {

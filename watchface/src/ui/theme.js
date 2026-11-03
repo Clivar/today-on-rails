@@ -17,6 +17,7 @@ export const C = {
   aodNow: 0x8c918a,
   aodText: 0x8c918a,
   aodMuted: 0x767a73,
+  aodAlert: 0xb37c40, // alert dimmed like aodLime is to lime (about 0.7)
   aodNumeral: 0x5a5e57,
 }
 

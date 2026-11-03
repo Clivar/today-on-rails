@@ -13,10 +13,11 @@ data class WatchSettings(
     val buzzAtStart: Boolean = false, // the watch buzzes when an event starts
     val buzzBeforeEnd: Boolean = false, // ...5 minutes before an event ends
     val buzzGetReady: Boolean = false, // ...when it's time to get ready
+    val railMinutes: Int = 180, // the green rail shows only when the event (its end while on) is this close (battery)
 )
 
 // Builds the text the watchface reads from the weather location name:
-//   "Brussels · 31/10 · cfg next=360 focus=15 during=1 · C09:00-10:30 Team call · R18:00 Water the plants · 1/11 · …"
+//   "Brussels · 31/10 · cfg next=360 focus=15 during=1 ready=0 rail=60 buzz=start · C09:00-10:30 Team call · R18:00 Water the plants · 1/11 · …"
 // city · date · settings · items · date · items … (R = reminder, C = calendar event with end time,
 // C@ = an event with a place).
 // The watchface parses it in watchface/src/data/agenda.js; the format is described in the README.
@@ -53,7 +54,7 @@ object AgendaText {
             "ready".takeIf { s.buzzGetReady && s.getReadyMinutes > 0 },
         ).ifEmpty { listOf("none") }.joinToString("+")
         return "cfg next=${s.nextMinutes} focus=${s.todayCardBefore} during=${if (s.todayCardDuring) 1 else 0} " +
-            "ready=${s.getReadyMinutes} buzz=$buzz"
+            "ready=${s.getReadyMinutes} rail=${s.railMinutes} buzz=$buzz"
     }
 
     private fun date(d: LocalDate) = "${d.dayOfMonth}/${d.monthValue}"

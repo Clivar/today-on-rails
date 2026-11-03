@@ -4,14 +4,21 @@ import { W } from './theme.js'
 
 // Every widget says when it shows: normal widgets only while the screen is lit, always-on widgets
 // only while it's dimmed (like Zepp's own always-on watchface samples). Unflagged widgets would
-// show in both and cover the dim screen. Demos of the always-on layouts show them lit instead.
-let level = 'normal' // 'normal' | 'alwaysOn' | 'demo'
-export function setWidgetLevel(next) {
+// show in both and cover the dim screen.
+let level = 'normal' // 'normal' | 'alwaysOn'
+
+// Creates widgets at a level: withWidgetLevel('alwaysOn', () => createAlwaysOnFrame())
+export function withWidgetLevel(next, create) {
+  const before = level
   level = next
+  try {
+    return create()
+  } finally {
+    level = before
+  }
 }
 
 export function widget(type, props) {
-  if (level === 'demo') return ui.createWidget(type, props)
   const show_level = level === 'alwaysOn' ? ui.show_level.ONAL_AOD : ui.show_level.ONLY_NORMAL
   return ui.createWidget(type, { ...props, show_level })
 }

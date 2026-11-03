@@ -1,16 +1,22 @@
-// The rail (screen on): a 12-hour clock around the screen edge, drawn on a canvas.
+// The rail (screen on): a 12-hour clock around the screen edge.
 //   outer ring — thin line, item dots (reminder = filled, calendar = ring), white "now" dot;
-//                with emphasis: a lime arc from now to the event. While an event is on, its whole
-//                span shows: the elapsed part dim, what's left bright — time you can see.
+//                with emphasis: a lime arc from now to the event, once that is at most the phone's
+//                "rail" minutes away. While an event is on, its whole span shows: the elapsed part
+//                dim, what's left bright — time you can see.
 //   inner ring — hour ticks, numerals 12 / 3 / 9, and the event's time label (replacing a numeral
 //                it would cover; left out if it would cover content).
+// Made of system widgets, not a canvas: they're drawn smooth (antialiased), and the minute refresh
+// only moves the few that changed. Widgets stack in creation order, so they're created bottom to top.
 // The always-on rail is components/alwaysOnRail.js (a flagged canvas can't draw while dimmed).
 import ui from '@zos/ui'
 
-import { W, H, C, F } from '../ui/theme.js'
+import { C, F } from '../ui/theme.js'
 import { widget, text, setProps, setVisible } from '../ui/widgets.js'
 import { textWidth } from '../ui/text.js'
-import { railPoint, railPolyline, hourLength, labelSpot, hoursApart, NUMERALS, INNER, OUTER } from '../ui/railGeometry.js'
+import {
+  railPoint, railPieces, pieceEnds, lineBox, discBox, arcProps, ringProps, tickBox, arcInWindow, labelSpot, hoursApart,
+  NUMERALS, TICK_HOURS, INNER, OUTER, ARC_WIDTH, RING_WIDTH, MARK,
+} from '../ui/railGeometry.js'
 import { railHour, railTarget, startsOnRail, formatTime } from '../data/agenda.js'
 
 // Screen boxes the time label must not cover, per layout
@@ -24,12 +30,17 @@ export const AVOID = {
 const ELAPSED = 0x4a6b22 // dim lime: the part of an ongoing event that's behind you
 
 export function createRail() {
-  const canvas = widget(ui.widget.CANVAS, { x: 0, y: 0, w: W, h: H })
-  const numerals = NUMERALS.map(([h, s]) => numeral(h, s, C.numeral))
-  const label = text({
-    x: 0, y: 0, w: 80, h: 20, text_size: 16, font: F.bold, color: C.muted,
-    align_h: ui.align.CENTER_H, align_v: ui.align.CENTER_V,
-  })
+  shape(ui.widget.STROKE_RECT, { ...ringProps(OUTER, RING_WIDTH), color: C.line })
+  const ticks = TICK_HOURS.map((h) => shape(ui.widget.FILL_RECT, { ...tickBox(h), color: C.tick }))
+  const numerals = NUMERALS.map(([h, s]) => tracked(numeral(h, s, C.numeral)))
+  const elapsed = createArc(ELAPSED)
+  const lime = createArc(C.lime)
+  // Dots, in a pool that grows when an agenda needs more. Each render hands them out bottom to top,
+  // so new ones (created on top) keep the order right. The label must stay above them: when the
+  // pool grows (rarely: the face is rebuilt on every wake), a new label is made on top.
+  const marks = []
+  for (let i = 0; i < 4; i++) marks.push(createMark())
+  let label = createLabel()
 
   // state:    { now, is24, agenda, subject }
   // emphasis: lime arc and dot for the subject
@@ -39,25 +50,33 @@ export function createRail() {
     const nowH = railHour(state.now.hours, state.now.minutes)
     const target = railTarget(subject)
     const labelText = target ? formatTime(target.hours, target.minutes, state.is24, false) : ''
-    const labelW = textWidth(labelText, 'bold', 16) + 8
-    const spot = target && labelSpot(target.h, labelW, avoid)
+    const spot = target && labelSpot(target.h, textWidth(labelText, 'bold', 16) + 8, avoid)
 
-    canvas.clear({ x: 0, y: 0, w: W, h: H })
-    polyline(canvas, railPolyline(0, 11.999, OUTER, 8), C.line, 3)
-    drawTicks(canvas, spot ? target.h : null)
-    if (emphasis && target) {
-      if (subject.ongoing) polyline(canvas, railPolyline(railHour(subject.hours, subject.minutes), nowH, OUTER, 4), ELAPSED, 8)
-      polyline(canvas, railPolyline(nowH, target.h, OUTER, 4), C.lime, 8)
+    TICK_HOURS.forEach((h, i) => ticks[i].show(!spot || hoursApart(h, target.h) >= 0.45))
+    NUMERALS.forEach(([h], i) => numerals[i].show(!spot || hoursApart(h, target.h) >= 0.75))
+
+    const arc = emphasis && target && arcInWindow(subject, state.agenda.settings.rail)
+    elapsed.draw(arc && subject.ongoing ? railPieces(railHour(subject.hours, subject.minutes), nowH) : [])
+    lime.draw(arc ? railPieces(nowH, target.h) : [])
+
+    // Bottom to top: later items first (so earlier ones end up on top), the subject, now
+    const list = []
+    const items = state.agenda.items.filter((it) => it !== subject && startsOnRail(it))
+    for (let i = items.length - 1; i >= 0; i--) {
+      list.push(itemMark(items[i], railHour(items[i].hours, items[i].minutes), emphasis))
     }
-    drawItems(canvas, state.agenda.items.filter((it) => it !== subject && startsOnRail(it)), emphasis)
-    if (target) drawSubject(canvas, subject, target.h, emphasis)
-    dot(canvas, nowH, 5.5, C.text, 10)
+    if (target) list.push(emphasis ? { h: target.h, ...MARK.subject, color: C.lime } : itemMark(subject, target.h, false))
+    list.push({ h: nowH, ...MARK.now, color: C.text })
+    if (marks.length < list.length) {
+      while (marks.length < list.length) marks.push(createMark())
+      label.show(false)
+      label = createLabel()
+    }
+    marks.forEach((m, i) => m.draw(list[i]))
 
-    NUMERALS.forEach(([h], i) => setVisible(numerals[i], !spot || hoursApart(h, target.h) >= 0.75))
-    setVisible(label, !!spot)
+    label.show(!!spot)
     if (spot) {
-      canvas.drawRect({ x: spot.x - labelW / 2, y: spot.y - 10, w: labelW, h: 20, color: C.bg })
-      setProps(label, {
+      label.set({
         x: Math.round(spot.x - 40), y: Math.round(spot.y - 10), w: 80, h: 20, text: labelText,
         color: emphasis ? C.lime : C.muted,
       })
@@ -65,6 +84,13 @@ export function createRail() {
   }
 
   return { render }
+}
+
+function createLabel() {
+  return tracked(text({
+    x: 0, y: 0, w: 80, h: 20, text_size: 16, font: F.bold, color: C.muted,
+    align_h: ui.align.CENTER_H, align_v: ui.align.CENTER_V,
+  }))
 }
 
 // A numeral (12 / 3 / 9) on the inner ring; also used by the always-on rail
@@ -76,62 +102,81 @@ export function numeral(h, s, color) {
   })
 }
 
-function drawTicks(canvas, labelH) {
-  // Short 8px-wide dashes on the inner ring, skipping the numerals and the label
-  const dash = 1.75 / hourLength(INNER)
-  for (let k = 0; k < 12; k++) {
-    if (k % 3 === 0 && k !== 6) continue
-    if (labelH !== null && hoursApart(k, labelH) < 0.45) continue
-    const [x1, y1] = railPoint(k - dash, INNER)
-    const [x2, y2] = railPoint(k + dash, INNER)
-    line(canvas, x1, y1, x2, y2, C.tick, 8)
+function itemMark(it, h, emphasis) {
+  if (it.kind === 'calendar') {
+    const d = emphasis ? MARK.ring.d : MARK.ring.dim
+    return { h, d, hole: d - 2 * MARK.ring.width, halo: MARK.ring.halo, color: emphasis ? C.text : C.muted }
   }
+  return { h, ...MARK.dot, color: C.muted }
 }
 
-function drawItems(canvas, items, emphasis) {
-  // Later items first, so earlier ones end up on top
-  for (let i = items.length - 1; i >= 0; i--) {
-    const it = items[i]
-    const h = railHour(it.hours, it.minutes)
-    if (it.kind === 'calendar') ring(canvas, h, emphasis ? 8 : 7.5, 4, emphasis ? C.text : C.muted, 12)
-    else dot(canvas, h, emphasis ? 6.5 : 6, C.muted, 10)
+// An arc on the outer ring: straight runs (round-ended FILL_RECTs), corner pieces (ARCs) and a
+// round cap at each end (the ARC's own ends may be square). A span under 12 hours has at most
+// 5 of each kind (tested), so they're all created up front, under the dots.
+function createArc(color) {
+  const lines = [], corners = []
+  for (let i = 0; i < 5; i++) {
+    lines.push(shape(ui.widget.FILL_RECT, { x: 0, y: 0, w: ARC_WIDTH, h: ARC_WIDTH, radius: ARC_WIDTH / 2, color }))
+    corners.push(shape(ui.widget.ARC, { x: 0, y: 0, w: 2, h: 2, start_angle: 0, end_angle: 0, line_width: ARC_WIDTH, color }))
   }
-}
+  const caps = [0, 1].map(() => shape(ui.widget.FILL_RECT, { ...discBox(0, 0, ARC_WIDTH), color }))
 
-function drawSubject(canvas, subject, h, emphasis) {
-  if (emphasis) dot(canvas, h, 9, C.lime, 12)
-  else if (subject.kind === 'calendar') ring(canvas, h, 7.5, 4, C.muted, 12)
-  else dot(canvas, h, 6, C.muted, 10)
-}
-
-// ── Canvas primitives ──────────────────────────────────────────────────────────
-
-// The watch ignores drawLine's own color/line_width and uses the current paint
-function line(canvas, x1, y1, x2, y2, color, width) {
-  canvas.setPaint({ color, line_width: width })
-  canvas.drawLine({ x1, y1, x2, y2, color, line_width: width })
-}
-
-function polyline(canvas, pts, color, width) {
-  canvas.setPaint({ color, line_width: width })
-  for (let i = 1; i < pts.length; i++) {
-    canvas.drawLine({ x1: pts[i - 1][0], y1: pts[i - 1][1], x2: pts[i][0], y2: pts[i][1], color, line_width: width })
+  function draw(pieces) {
+    let l = 0, c = 0
+    for (const p of pieces) {
+      if (p.kind === 'line') lines[l++].place(lineBox(p, ARC_WIDTH))
+      else {
+        const props = arcProps(p, ARC_WIDTH)
+        if (props) corners[c++].place(props)
+      }
+    }
+    lines.forEach((w, i) => i >= l && w.show(false))
+    corners.forEach((w, i) => i >= c && w.show(false))
+    if (!pieces.length) return caps.forEach((w) => w.show(false))
+    pieceEnds(pieces).forEach(([x, y], i) => caps[i].place(discBox(x, y, ARC_WIDTH)))
   }
-  // Round joints and caps keep thick lines smooth through the corners
-  if (width > 3) {
-    for (const p of pts) canvas.drawCircle({ center_x: p[0], center_y: p[1], radius: width / 2, color })
+
+  return { draw }
+}
+
+// A dot on the outer ring: black halo, the dot, and a black hole when it's a ring
+function createMark() {
+  const halo = shape(ui.widget.FILL_RECT, { ...discBox(0, 0, 2), color: C.bg })
+  const disc = shape(ui.widget.FILL_RECT, { ...discBox(0, 0, 2), color: C.bg })
+  const hole = shape(ui.widget.FILL_RECT, { ...discBox(0, 0, 2), color: C.bg })
+
+  function draw(m) {
+    if (!m) return [halo, disc, hole].forEach((w) => w.show(false))
+    const [x, y] = railPoint(m.h, OUTER)
+    halo.place(discBox(x, y, m.halo))
+    disc.place({ ...discBox(x, y, m.d), color: m.color })
+    if (m.hole) hole.place(discBox(x, y, m.hole))
+    else hole.show(false)
   }
+
+  return { draw }
 }
 
-function dot(canvas, h, r, color, halo = 0) {
-  const [x, y] = railPoint(h, OUTER)
-  if (halo) canvas.drawCircle({ center_x: x, center_y: y, radius: halo, color: C.bg })
-  canvas.drawCircle({ center_x: x, center_y: y, radius: r, color })
+// ── Widgets that only talk to the watch when something changed ──────────────────────────────────
+// The minute refresh then costs a few calls (the now dot, the arc's ends) instead of redrawing it all.
+
+function shape(type, props) {
+  return tracked(widget(type, props), props)
 }
 
-function ring(canvas, h, r, width, color, halo) {
-  const [x, y] = railPoint(h, OUTER)
-  canvas.drawCircle({ center_x: x, center_y: y, radius: halo, color: C.bg })
-  canvas.drawCircle({ center_x: x, center_y: y, radius: r, color })
-  canvas.drawCircle({ center_x: x, center_y: y, radius: Math.max(1, r - width), color: C.bg })
+// place(props): show it there; set(props): change props (visibility as it is); show(on)
+export function tracked(w, initial = {}) {
+  let last = initial
+  let shown = true
+  const set = (props) => {
+    if (Object.keys(props).some((k) => props[k] !== last[k])) {
+      setProps(w, props)
+      last = { ...last, ...props }
+    }
+  }
+  const show = (on) => {
+    if (on !== shown) setVisible(w, on)
+    shown = on
+  }
+  return { set, show, place: (props) => (set(props), show(true)) }
 }

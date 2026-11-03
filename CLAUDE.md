@@ -15,6 +15,10 @@ Zepp OS typings and docs where they disagree.
   **no phone notifications** (rejected explicitly — the watch buzzes by itself), Gadgetbridge has no
   notification access on their phone and that's on purpose. GrapheneOS phone.
 - A watchface only — **no Zepp OS app** (one was built and removed).
+- **No demo or test code in the watchface or the phone app.** Test data goes in only through test
+  builds made by the build script (`tools/build.sh <test>`, data in `tools/test-builds/`). The phone
+  app is one production build, with no debug-only features. (Testing through the phone was rejected:
+  new data only reaches the watch on its own weather fetch, ~30 min.)
 - Keep personal data out of the repo: calendar titles, account names/e-mails, device MAC addresses.
 - The signing key (`android/release.jks` + `keystore.properties`) must never be committed.
 - Ask before outward-facing or irreversible actions; change phone/watch settings only when needed and
@@ -26,7 +30,7 @@ Zepp OS typings and docs where they disagree.
 tools/setup.sh                   # once: chromium, JDK 21, adb, Android SDK 37, npm install (zeus)
 npm test                         # watch + parity: node --test tests/ (tests/README.md)
 npm run test:all                 # everything: npm test + gradle unit tests + lintRelease
-tools/build.sh [demo]            # watch: → watchface/dist/*.zab (demo names: watchface/src/data/demos.js)
+tools/build.sh [test]            # watch: → watchface/dist/*.zab; a test build → build/test-<test>/dist/*.zab
 tools/install.sh <zab>           # install on the watch through Gadgetbridge (needs the phone over adb)
 cd android && ./gradlew testDebugUnitTest lintRelease assembleRelease   # phone app
 ```
@@ -39,11 +43,12 @@ Always run `npm run test:all` after changes. The agenda text format is shared: c
 ## Architecture in one paragraph
 
 The Android app reads the calendar, builds an **agenda text**
-(`Brussels · 31/10 · cfg next=360 focus=0 during=1 ready=60 buzz=start+end · C09:00-10:30 Team call · R18:00 Water the plants · 1/11 · C@14:00-15:00 Dentist`,
+(`Brussels · 31/10 · cfg next=360 focus=0 during=1 ready=60 rail=180 buzz=start+end · C09:00-10:30 Team call · R18:00 Water the plants · 1/11 · C@14:00-15:00 Dentist`,
 format in README) and sends it to Gadgetbridge as the `location` of a generic weather broadcast
 (`ACTION_GENERIC_WEATHER`, `WeatherGz`). The watch fetches weather from Gadgetbridge over its own HTTP
-emulation and gets the text back as the city name; the watchface reads `new Weather().getForecast().cityName`,
-parses it, picks a layout (`chooseLayout`) and buzzes at chosen moments (`dueBuzz`).
+emulation and gets the text back as the city name; the watchface reads `new Weather().getForecast().cityName`
+(only in `data/agendaSource.js`, the one module a test build swaps), parses it, picks a layout
+(`chooseLayout`) and buzzes at chosen moments (`dueBuzz`).
 
 ## Zepp OS / Amazfit Bip 6 facts (verified on the device)
 
@@ -60,10 +65,17 @@ parses it, picks a layout (`chooseLayout`) and buzzes at chosen moments (`dueBuz
   joints (draw circles at the points) or corners look jagged.
 - `CIRCLE` widgets can't be moved after creation (`MORE` with `center_x` is ignored); use a `FILL_RECT`
   with `radius`. `VISIBLE` works on all widgets used here.
-- Watchfaces pause when the screen is off. Use `WIDGET_DELEGATE` `resume_call` and `pause_call`.
-- **Always-on (AOD):** the face is built once; while dimmed only widgets with `show_level: ONAL_AOD` show.
+- Watchfaces pause when the screen is off. `WIDGET_DELEGATE` `resume_call` catches up on wake. The face
+  has no `pause_call`: the watch rebuilds the face as it dims, so drawing on pause was thrown away, and
+  it ran right in the lit → dim switch, which lagged.
+- **Always-on (AOD):** while dimmed only widgets with `show_level: ONAL_AOD` show. The face is **rebuilt on
+  every switch** between lit and dim (`getScene()`: 1 lit, 3 dim) and after the screen was off, so
+  in-memory state is lost: keep what must survive in `localStorage` (`data/saved.js`, needs the
+  `device:os.local_storage` permission). A dimmed instance builds only the always-on widgets, a lit
+  one builds both sets (`data/refresh.js`, `setsForScene`); a refresh with the same inputs as the last
+  one is skipped (`refreshKey`).
   **Flag every normal widget `ONLY_NORMAL`** (unflagged ones show in both and broke AOD) — `ui/widgets.js`
-  does this via `setWidgetLevel`. A **CANVAS flagged ONAL_AOD has no drawing methods** ("not a function").
+  does this via `withWidgetLevel`. A **CANVAS flagged ONAL_AOD has no drawing methods** ("not a function").
   AOD only happens **while worn**; then the face's code does run (minute ticks continue). Off the wrist
   the screen just turns off and nothing runs — don't test AOD with the watch on a table.
 - `IMG_TIME` gives every digit a **fixed-width slot** (width of the digit images; `hour_space` between).
@@ -72,13 +84,23 @@ parses it, picks a layout (`chooseLayout`) and buzzes at chosen moments (`dueBuz
 - A TEXT box **narrower than its glyph** is not centred: the watch shifts the text, so "0"/"4" (a bit
   wider than a digit slot) slid sideways. Digit boxes are the slot plus padding on both sides
   (`glyphBox`), tested in `tests/watch/clock.test.mjs`; the always-on digit images are flex-centred.
+- The screen edge **clips marks** near it: with the rail's outer ring 10 px in, its 16 px dot was
+  visibly cut. The ring now sits 13 px in, and every dot, cap and arc keeps ≥ 4 px from the rounded edge
+  (`tests/watch/rail.test.mjs`).
 - The watch **vibrates from a watchface**: `new Vibrator().start({ mode: VIBRATOR_SCENE_NOTIFICATION })`
-  (`@zos/sensor`), no permission. Works while lit or in AOD.
+  (`@zos/sensor`), no permission. Works while lit and from the dim (AOD) instance (verified 2026-11-03).
 - `launchApp` from a watchface works (`SYSTEM_APP_VOICE_MEMO`, `native: true`); `launchApp` takes no params.
 - Heart rate: `getLast()` + `onLastChange` (no extra sensor use), `getToday()` per-minute array (find the
   age of the last reading), `getResting()`. `onCurrentChange` = continuous measurement = battery drain.
 - `zeus` 1.9.3 on Node 26 fails to load `zeppos-app-utils`: `npm install` symlinks it (package.json postinstall).
   `zeus build` needs no Zepp account. Its "intermediate products" notice is about Zepp's store; ignore.
+
+**ARC and STROKE_RECT** (measured 2026-11-03 on a screenshot of `tools/build.sh rail`): `ARC` angles are
+degrees, **0° = 3 o'clock, clockwise**; its stroke lies **inside** the x/y/w/h box (outer edge on the box —
+with the box on the stroke's centre line the corners sat 4 px inside the straight runs). `STROKE_RECT`
+also strokes inside its box. Both draw smooth (anti-aliased) edges. These are the `DEVICE` values in
+`ui/railGeometry.js`; the lit rail is `FILL_RECT` straight runs and dots, `ARC` corners, a `STROKE_RECT`
+base ring. Measure such things on the raw BMP (`/tmp/gbphone/*.bmp`), not by eye.
 
 ## Gadgetbridge facts (0.95.1, the version on the phone; submodule is master `86703c8006`)
 
@@ -121,12 +143,24 @@ given, find the pairing port with a port scan of 30000–50000 (`adb pair ip:por
   (Gadgetbridge's "Take Screenshot" → BMP → PNG in `/tmp/gbphone`), `wake.sh` (Find lost device → stop;
   this vibrates the watch), `tapdesc.sh "<text>"` (tap by text/content-desc), `sendweather.sh "<text>"`.
 - Screenshot quirks: BMPs are 400×450 (10 px padding right), top-down, 24-bit — sometimes 16-bit RGB565
-  frames caught mid-redraw (retake); filenames use a 12-hour clock (sort by mtime). Screenshots **don't
-  show what AOD looks like** — ask the user to look, or build `aod-check` (demo) which adds a diagnostic
-  panel to the dim screen. A screenshot of a paused face shows its last frame (check the clock).
-- Demo builds (`tools/build.sh <demo>`) fix the time/agenda for screenshots; `align`/`align-next` overlay the
-  normal and always-on clocks; `buzz-test` buzzes every 3 minutes (put the real face back afterwards!).
-  `tools/compare.sh` puts a design board next to a screenshot; `tools/sheet.sh` makes contact sheets.
+  frames caught mid-redraw (retake); filenames use a 12-hour clock (sort by mtime). A screenshot taken
+  while the worn watch is dimmed shows the always-on widgets (not the dim brightness).
+  A screenshot of a paused face shows its last frame (check the clock).
+- **Test builds** (`tools/build.sh <test>`; unknown name → lists them): the script copies `watchface/` to
+  `build/test-<test>/` (gitignored) and swaps `src/data/agendaSource.js` for
+  `tools/test-builds/shared/agendaSource.js`, which computes the agenda text on the watch from its own
+  clock (`tools/test-builds/<test>.js`). No phone or weather fetch needed. Times are laid out from the
+  first run, stored as `firstRun-<build id>` so it survives rebuilds; each new build starts afresh. The
+  face is renamed "Today On Rails test <test>" with the same appId, so installing it replaces the face.
+  - `buzz`: a start buzz every minute for an hour after installing, then quiet (wear it to test dimmed).
+  - `demo`: a sample day for screenshots, through every layout in about 5 hours (no buzzes).
+  - `rail`: long arcs through the corners and a dot on every hour, whatever the time: screen-edge
+    clipping and the `DEVICE` conventions of `ui/railGeometry.js`.
+  - `wrap-up`: "WRAP IT UP" and the end buzz 3 minutes after installing, then the next event.
+
+  **Put the real face back afterwards:** `tools/build.sh && tools/install.sh watchface/dist/*.zab`.
+  `tests/watch/testBuilds.test.mjs` checks each test agenda. 12-hour layouts: switch the watch to 12 h.
+- `tools/compare.sh` puts a design board next to a screenshot; `tools/sheet.sh` makes contact sheets.
 - Taps in the phone app: wait for scrolling to stop and keep targets away from the status bar, or taps
   are swallowed.
 - Watch layout calibration came from the design boards: `design/spec/*.html` (cleaned DOM with exact
@@ -140,5 +174,9 @@ given, find the pairing port with a port scan of 30000–50000 (`adb pair ip:por
 - Sync triggers (battery): calendar content-trigger job (no network; reuses cached weather), hourly
   periodic job (weather ≤ every 55 min + 7-day look-ahead), clock/time-zone change, "Send now", first run.
   Identical data isn't resent (hash) for 6 h.
+- One release app: no debug-only sources or build-type features (owner's decision; see above).
+- "Green rail" setting (`rail_minutes`, choices 30/60/180/360/720 min, default 180) → `rail=` in the
+  agenda; the watch draws the lime arc only when the event (its end while on) is that close. With no
+  `rail=` in the text the watch uses the same 180 (its fallbacks in `agenda.js` `DEFAULT_SETTINGS` match the app's defaults).
 - Our `Settings` class clashes with `android.provider.Settings` — alias one of them when both are needed.
 - Lint must stay clean (`abortOnError`).

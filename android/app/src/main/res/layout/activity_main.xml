@@ -29,6 +29,9 @@
         <TextView style="@style/Label" android:text="@string/today_card_before_label" />
         <Spinner android:id="@+id/todayCardBefore" style="@style/Choice" />
         <TextView style="@style/Note" android:text="@string/today_card_note" />
+        <TextView style="@style/Label" android:text="@string/rail_label" />
+        <Spinner android:id="@+id/railMinutes" style="@style/Choice" />
+        <TextView style="@style/Note" android:text="@string/rail_note" />
 
         <!-- Nudges: the watch buzzes at chosen moments, and "get ready" for events with a place -->
         <TextView style="@style/Section" android:text="@string/nudges" />

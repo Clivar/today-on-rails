@@ -3,7 +3,6 @@ package app.todayonrails.ui
 import android.app.Activity
 import android.view.View
 import android.widget.AdapterView
-import android.widget.ArrayAdapter
 import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.Switch
@@ -25,7 +24,7 @@ class NudgesSection(activity: Activity, private val settings: Settings, private 
         toggle(activity.findViewById(R.id.buzzGetReady), settings.buzzGetReady) { settings.buzzGetReady = it }
 
         val minutes = activity.findViewById<Spinner>(R.id.getReadyMinutes)
-        minutes.adapter = ArrayAdapter.createFromResource(activity, R.array.get_ready_choices, android.R.layout.simple_spinner_dropdown_item)
+        minutes.adapter = choices(activity, R.array.get_ready_choices, GET_READY_CHOICES, Settings.DEFAULT_GET_READY)
         minutes.setSelection(GET_READY_CHOICES.indexOf(settings.getReadyMinutes).coerceAtLeast(0), false)
         minutes.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {

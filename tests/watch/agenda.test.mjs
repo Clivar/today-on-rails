@@ -1,12 +1,11 @@
-// Watch side: agenda parsing, layout choice, buzz timing, formatting. Run: npm test
+// Watch side: agenda parsing, layout choice, formatting (buzz timing: buzzes.test.mjs). Run: npm test
 // (What the phone writes vs what the watch reads is checked separately: tests/parity/.)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  parseAgenda, chooseLayout, itemsAfter, freeUntil, formatIn, formatLeft, formatSpan, railTarget, isWrappingUp,
-  DEFAULT_SETTINGS,
+  parseAgenda, chooseLayout, itemsAfter, moreSameDay, freeUntil, formatIn, formatLeft, formatSpan, railTarget,
+  isWrappingUp, DEFAULT_SETTINGS,
 } from '../../watchface/src/data/agenda.js'
-import { dueBuzz } from '../../watchface/src/data/buzzes.js'
 
 const AGENDA =
   'Brussels · 30/10 · C23:00-01:00 Night shift · 31/10 · cfg next=120 focus=15 during=1 ready=60 buzz=start+end+ready · ' +
@@ -18,7 +17,7 @@ const at = (hours, minutes, day = 31, s = AGENDA) => {
 
 test('settings are read', () => {
   assert.deepEqual(at(12, 0).agenda.settings, {
-    next: 120, focus: 15, during: true, ready: 60, buzz: { start: true, end: true, ready: true },
+    next: 120, focus: 15, during: true, ready: 60, rail: 180, buzz: { start: true, end: true, ready: true },
   })
 })
 
@@ -112,22 +111,20 @@ test('wrapping up in the last 5 minutes', () => {
   assert.equal(isWrappingUp(at(10, 25).subject), true)
 })
 
-test('buzz moments: start, 5 minutes left, get ready — a minute late is still fine', () => {
-  const kind = (h, m, day = 31, month = 10, s = AGENDA) => {
-    const due = dueBuzz(parseAgenda(s, { year: 2026, month, day, hours: h, minutes: m }))
-    return due && due.kind
-  }
-  assert.equal(kind(8, 59), null)
-  assert.equal(kind(9, 0), 'start')
-  assert.equal(kind(9, 1), 'start') // the screen came on a minute late
-  assert.equal(kind(9, 2), null)
-  assert.equal(kind(10, 25), 'end') // Team call ends 10:30
-  assert.equal(kind(18, 0), 'start') // a reminder: start only
-  assert.equal(kind(13, 0, 1, 11), 'ready') // Dentist (with a place) at 14:00, ready=60
-  assert.equal(kind(9, 0, 31, 10, AGENDA.replace('buzz=start+end+ready', 'buzz=end')), null)
-})
 
-test('no buzz settings from the phone: the watch stays quiet', () => {
-  assert.equal(dueBuzz(parseAgenda('X · 31/10 · C09:00-10:00 Gym', { year: 2026, month: 10, day: 31, hours: 9, minutes: 0 })), null)
+test('a reminder just past is only kept for the buzzer, never shown', () => {
+  // 9:31: Stretch (9:30) was a minute ago, during Team call (9:00-10:30)
+  const s = AGENDA.replace('C09:00-10:30 Team call', 'C09:00-10:30 Team call · R09:30 Stretch')
+  const { agenda, layout, subject } = at(9, 31, 31, s)
+  assert.deepEqual(agenda.justPast.map((i) => [i.title, i.inMin]), [['Stretch', -1]])
+  assert.ok(!agenda.items.some((i) => i.title === 'Stretch'))
+  assert.equal(layout, 'focus')
+  assert.equal(subject.title, 'Team call')
+  assert.deepEqual(itemsAfter(agenda, subject, 2).map((i) => i.title), ['Water the plants', 'Walk'])
+  assert.equal(moreSameDay(agenda, subject), 2)
+  // two minutes past it's gone; an event that's over isn't kept at all
+  assert.deepEqual(at(9, 32, 31, s).agenda.justPast, [])
+  assert.deepEqual(at(10, 31, 31, s).agenda.justPast, [])
+  // a moment right now is still an item
+  assert.ok(at(9, 30, 31, s).agenda.items.some((i) => i.title === 'Stretch'))
 })
-

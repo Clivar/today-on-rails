@@ -51,8 +51,13 @@ android {
     }
 
     testOptions {
-        // The parity cases shared with the watchface tests (tests/parity/cases.json)
-        unitTests.all { it.systemProperty("parity.cases", rootProject.file("../tests/parity/cases.json").absolutePath) }
+        // The parity cases shared with the watchface tests (tests/parity/cases.json). Declared as an
+        // input too, so editing only the cases re-runs the tests instead of reporting UP-TO-DATE.
+        val parityCases = rootProject.file("../tests/parity/cases.json")
+        unitTests.all {
+            it.systemProperty("parity.cases", parityCases.absolutePath)
+            it.inputs.file(parityCases).withPathSensitivity(PathSensitivity.NONE)
+        }
     }
 
     lint {

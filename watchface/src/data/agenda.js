@@ -1,5 +1,5 @@
 // The agenda travels inside the weather location name (format in README.md):
-//   "Brussels · 31/10 · cfg next=360 focus=15 during=1 ready=60 · C09:00-10:30 Team call · R18:00 Water the plants · 1/11 · C@10:00-11:00 Dentist"
+//   "Brussels · 31/10 · cfg next=360 focus=15 during=1 ready=60 rail=60 buzz=start+end · C09:00-10:30 Team call · R18:00 Water the plants · 1/11 · C@10:00-11:00 Dentist"
 //   city · date · settings · items · date · items …
 // - A date (day/month) sets the day of the items after it; the first part after the city must be one.
 // - Items: R (reminder, a moment) or C (calendar event, optional end time), 24-hour times, then the title.
@@ -17,12 +17,18 @@ const NO_WEATHER = 'no weather'
 // Defaults when the phone sends no settings
 export const DEFAULT_SETTINGS = {
   next: 360, // minutes before an event: show the "next" layout
-  focus: 0, // minutes before an event: show the Today card (0 = off)
+  focus: 30, // minutes before an event: show the Today card (0 = off)
   during: true, // show the Today card while an event is ongoing
   ready: 0, // minutes before an event with a place: "get ready" Today card (0 = off)
+  rail: 180, // minutes: the green rail (lime arc) shows only when its end is this close (battery)
   buzz: { start: false, end: false, ready: false }, // the watch buzzes at these moments
 }
 export const RAIL_HOURS = 12
+
+// The watch still buzzes for a moment this many minutes after it (the screen came on just after it:
+// data/buzzes.js). So a moment without length (a reminder) stays that long after it's past, in
+// agenda.justPast: for the buzzer only, the screens never show it.
+export const LATE_MIN = 1
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -30,6 +36,11 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 function dayNumber(y, m, d) {
   return Math.floor(Date.UTC(y, m - 1, d) / 86400000)
+}
+
+// now as a count of minutes since 1 Jan 1970 (local time): one number per minute of the calendar
+export function minuteOf(now) {
+  return dayNumber(now.year, now.month, now.day) * 1440 + now.hours * 60 + now.minutes
 }
 
 function parseSettings(part) {
@@ -41,6 +52,7 @@ function parseSettings(part) {
     if (k === 'focus' && n >= 0) s.focus = n
     if (k === 'during') s.during = v === '1'
     if (k === 'ready' && n >= 0) s.ready = n
+    if (k === 'rail' && n > 0) s.rail = n
     if (k === 'buzz') {
       const on = (v || '').split('+')
       s.buzz = { start: on.includes('start'), end: on.includes('end'), ready: on.includes('ready') }
@@ -51,10 +63,12 @@ function parseSettings(part) {
 
 // now: { year, month (1-12), day, hours, minutes }
 // Items keep minutes relative to now: inMin (start) and endInMin (end; same as start for reminders).
+// items: what's on or still to come, by start; justPast: moments without length up to LATE_MIN ago.
 export function parseAgenda(cityName, now) {
   const parts = (cityName || '').split(SEP)
   const result = {
-    city: parts[0] || '', items: [], valid: false, weather: !parts.includes(NO_WEATHER), settings: { ...DEFAULT_SETTINGS },
+    city: parts[0] || '', items: [], justPast: [], valid: false, weather: !parts.includes(NO_WEATHER),
+    settings: { ...DEFAULT_SETTINGS },
   }
   if (parts.length < 2 || !DATE.test(parts[1])) return result
 
@@ -101,10 +115,12 @@ export function parseAgenda(cityName, now) {
     const offset = (day - today) * 1440 - nowMin
     const inMin = start + offset
     const endInMin = end + offset
-    if (endInMin < 0 || (endInMin === inMin && inMin < 0)) continue // over
+    const past = endInMin < 0
+    if (past && (end > start || inMin < -LATE_MIN)) continue // over (a moment just past stays: LATE_MIN)
 
     const startDay = today + Math.floor((start + (day - today) * 1440) / 1440)
-    result.items.push({
+    const list = past ? result.justPast : result.items
+    list.push({
       kind: kind === 'C' ? 'calendar' : 'reminder',
       hasPlace: at === '@',
       hours: Number(sh),
@@ -144,9 +160,30 @@ export function chooseLayout(agenda) {
   return { layout: 'clear', subject: upcoming }
 }
 
-// The last minutes of an event: time to wrap up (the label turns orange)
+// The last minutes of an event: time to wrap up (the label says so, in orange; the "end" buzz).
+// Only events long enough to have a last 5 minutes: a 5-minute stand-up isn't "wrapping up" from the start.
 export const WRAP_UP_MIN = 5
-export const isWrappingUp = (item) => !!item && item.ongoing && item.endInMin <= WRAP_UP_MIN
+export const hasWrapUp = (item) => item.kind === 'calendar' && item.endInMin - item.inMin >= WRAP_UP_MIN * 2
+export const isWrappingUp = (item) => !!item && item.ongoing && hasWrapUp(item) && item.endInMin <= WRAP_UP_MIN
+
+// The small upper-case line above an event's title (Today card and "next" layout):
+//   upcoming   "NEXT · IN 10 MIN", "GET READY · IN 58 MIN" (ready), "6:00 PM · IN 58 MIN" (timeFirst)
+//   ongoing    "NOW · 25 MIN LEFT", last minutes "WRAP IT UP · 4 MIN LEFT"
+//   fixedTimes "NEXT · 6:00 PM", "NOW · UNTIL 10:30", "WRAP IT UP · UNTIL 10:30" (the always-on card)
+// wrapUp: show it in the alert color.
+export function eventLabel(subject, { is24 = false, ready = false, fixedTimes = false, timeFirst = false } = {}) {
+  const wrapUp = isWrappingUp(subject)
+  let lead
+  let rest
+  if (subject.ongoing) {
+    lead = wrapUp ? 'Wrap it up' : 'Now'
+    rest = fixedTimes ? `until ${formatTime(subject.endHours, subject.endMinutes, is24)}` : formatLeft(subject.endInMin)
+  } else {
+    lead = timeFirst ? formatTime(subject.hours, subject.minutes, is24) : ready ? 'Get ready' : 'Next'
+    rest = fixedTimes ? formatWhen(subject, is24) : formatIn(subject.inMin)
+  }
+  return { text: `${lead} · ${rest}`.toUpperCase(), wrapUp }
+}
 
 // Items after `subject` (for the Today card list)
 export function itemsAfter(agenda, subject, count) {

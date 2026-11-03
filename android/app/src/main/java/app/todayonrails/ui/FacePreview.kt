@@ -22,6 +22,13 @@ class FacePreview @JvmOverloads constructor(context: Context, attrs: AttributeSe
             invalidate()
         }
 
+    // The lime arc shows only when the event is this close (the "Green rail" setting)
+    var railMinutes = 60
+        set(value) {
+            field = value
+            invalidate()
+        }
+
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val digits = Typeface.create("sans-serif-condensed", Typeface.BOLD)
     // Reused while drawing (no allocations in onDraw)
@@ -61,7 +68,7 @@ class FacePreview @JvmOverloads constructor(context: Context, attrs: AttributeSe
         nowDot(c, 1.6f)
     }
 
-    // Smaller clock, the event, a lime arc from now to it
+    // Smaller clock, the event, a lime arc from now (5:02) to it (6:00)
     private fun next(c: Canvas) {
         bar(c, 40f, 48f, 110f, 16f, MUTED)
         time(c, "5:02", 34f, 222f, 140f)
@@ -69,12 +76,12 @@ class FacePreview @JvmOverloads constructor(context: Context, attrs: AttributeSe
         bar(c, 40f, 268f, 230f, 30f, TEXT) // title
         bar(c, 40f, 310f, 120f, 14f, MUTED) // +2 more today
         bottomRow(c)
-        arc(c, 5f, 6f)
-        nowDot(c, 5f)
+        arc(c, NEXT_NOW, 6f)
+        nowDot(c, NEXT_NOW)
         eventDot(c, 6f)
     }
 
-    // The Today card: one event large, then what comes after it
+    // The Today card: one event large, then what comes after it; the arc runs from now (10:05) to its end
     private fun todayCard(c: Canvas) {
         bar(c, 40f, 44f, 60f, 20f, MUTED) // small clock
         bar(c, 40f, 116f, 170f, 16f, LIME) // NOW · 25 MIN LEFT
@@ -86,8 +93,8 @@ class FacePreview @JvmOverloads constructor(context: Context, attrs: AttributeSe
         dot(c, 46f, 376f, 6f, TEXT)
         bar(c, 62f, 368f, 150f, 16f, TEXT)
         fill(c, LIME) { it.drawCircle(324f, 380f, 28f, paint) } // record
-        arc(c, 9.5f, 10.5f)
-        nowDot(c, 9.5f)
+        arc(c, CARD_NOW, 10.5f)
+        nowDot(c, CARD_NOW)
         eventDot(c, 10.5f)
     }
 
@@ -119,7 +126,9 @@ class FacePreview @JvmOverloads constructor(context: Context, attrs: AttributeSe
         stroke(c, LINE, 3f) { it.drawPath(railPath, paint) }
     }
 
+    // from/to in hours on the dial; left out when the event is further away than the rail setting
     private fun arc(c: Canvas, from: Float, to: Float) {
+        if ((to - from) * 60 > railMinutes + 0.5f) return
         segment.reset()
         measure.getSegment(measure.length * from / 12f, measure.length * to / 12f, segment, true)
         stroke(c, LIME, 10f) { it.drawPath(segment, paint) }
@@ -173,6 +182,8 @@ class FacePreview @JvmOverloads constructor(context: Context, attrs: AttributeSe
         const val MUTED = 0xFF9EA39A.toInt()
         const val LINE = 0xFF2B2E2A.toInt()
         const val LIME = 0xFFB6F35A.toInt()
+        const val NEXT_NOW = 5f + 2f / 60 // 5:02, 58 min before the event
+        const val CARD_NOW = 10f + 5f / 60 // 10:05, 25 min before the event ends
 
         // A rounded rectangle path that starts at the top centre and runs clockwise
         fun addRoundRectFromTop(p: Path, r: RectF, radius: Float) {

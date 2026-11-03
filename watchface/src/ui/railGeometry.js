@@ -1,36 +1,100 @@
 // The rail: a 12-hour clock around the rounded-square screen edge.
 // Positions are proportional to distance along the path (like SVG pathLength=12),
 // starting at 12 o'clock (top centre) and running clockwise.
+// Pure geometry (no @zos imports): components/rail.js turns it into widgets; tests/watch/rail.test.mjs.
 import { W, H } from './theme.js'
 
 // The Bip 6 screen has rounded corners with an 86 px radius (Zepp device spec "rAngle").
 // Both rings are concentric with them, so they keep the same distance from the visible
-// edge all the way round (the design's 54 px radius ran off-screen in the corners).
+// edge all the way round. OUTER sits 13 px in: the biggest mark on it (the 16 px subject dot)
+// then keeps 5 px from the edge — at 10 px the panel's edge visibly clipped it on the watch.
+// INNER keeps 16 px from OUTER: the dots' black halos (12 px) stop where the ticks (8 px) start.
 export const SCREEN_CORNER = 86
-export const OUTER = { inset: 10, r: SCREEN_CORNER - 10 }
-export const INNER = { inset: 26, r: SCREEN_CORNER - 26 }
+export const OUTER = { inset: 13, r: SCREEN_CORNER - 13 }
+export const INNER = { inset: 29, r: SCREEN_CORNER - 29 }
 
+// Line widths and mark sizes (diameters) on the outer ring. Every halo is black: it punches the
+// ring and the arc around its mark.
+export const RING_WIDTH = 3
+export const ARC_WIDTH = 8
+export const MARK = {
+  subject: { d: 16, halo: 24 }, // the emphasised event (lime)
+  ring: { d: 16, dim: 14, width: 4, halo: 24 }, // calendar event (dim: without emphasis)
+  dot: { d: 12, halo: 20 }, // reminder
+  now: { d: 12, halo: 20 },
+  alwaysOn: { d: 12 }, // the event's dot on the dim screen
+}
+
+// ── How the watch draws ARC and STROKE_RECT (measured on the Bip 6, 2026-11-03) ───────────────
+// Kept in one place so the rail follows the device; measured from a screenshot of the "rail" test
+// build (tools/build.sh rail), against the straight runs drawn with FILL_RECT:
+//   arcAngleOffset  added to our angles (ours: degrees, 0° = 3 o'clock, clockwise). The watch
+//                   uses the same: 0.
+//   arcStroke       'inside': an ARC's stroke lies inside its x/y/w/h box (outer edge on the box).
+//                   With 'centre' the corners sat 4 px (half the line) inside the straight runs.
+//   strokeRect      STROKE_RECT (the thin base ring) the same: 'inside'.
+// The arcs' ends get round caps of their own (cap dots), so the ARC's own cap shape doesn't matter.
+const DEG = 180 / Math.PI
+
+export const DEVICE = { arcAngleOffset: 0, arcStroke: 'inside', strokeRect: 'inside' }
+
+// ARC widget props for a corner piece, or null when it's under a pixel long: such a leftover of a
+// span ending just past a corner is covered by the arc's round cap, and its angles could round to
+// start === end, which the watch might draw as a full circle. The angles are rounded outwards, so a
+// piece that is drawn never collapses (and adjoining pieces overlap by under a degree, never gap).
+export function arcProps({ cx, cy, r, from, to }, lineWidth) {
+  if ((r * (to - from)) / DEG < 1) return null
+  const R = DEVICE.arcStroke === 'inside' ? r + lineWidth / 2 : r
+  return {
+    x: Math.round(cx - R), y: Math.round(cy - R), w: Math.round(2 * R), h: Math.round(2 * R),
+    start_angle: Math.floor(from + DEVICE.arcAngleOffset + 1e-9),
+    end_angle: Math.ceil(to + DEVICE.arcAngleOffset - 1e-9),
+    line_width: lineWidth,
+  }
+}
+
+// STROKE_RECT props for a whole ring
+export function ringProps({ inset, r }, lineWidth) {
+  const out = DEVICE.strokeRect === 'inside' ? lineWidth / 2 : 0
+  const x = Math.round(inset - out), y = Math.round(inset - out)
+  return {
+    x, y, w: Math.round(W - inset + out) - x, h: Math.round(H - inset + out) - y,
+    radius: Math.round(r + out), line_width: lineWidth,
+  }
+}
+// ──────────────────────────────────────────────────────────────────────────────────────────────
+
+
+// The path as 9 pieces — half the top, corner, right, corner, bottom, corner, left, corner, the
+// other half of the top — each { len, at(d) -> [x, y, direction], piece(a, b) -> drawable piece }
 function segments({ inset: m, r }) {
   const R = W - m
   const B = H - m
   const sx = W - 2 * m - 2 * r
   const sy = H - 2 * m - 2 * r
-  const q = (Math.PI * r) / 2
-  const arc = (cx, cy, a0) => (d) => {
-    const a = a0 + d / r
-    return [cx + r * Math.cos(a), cy + r * Math.sin(a), a + Math.PI / 2]
-  }
-  // [length, point(d) -> [x, y, direction angle]]
+  const straight = (len, x0, y0, dx, dy) => ({
+    len,
+    at: (d) => [x0 + dx * d, y0 + dy * d, Math.atan2(dy, dx)],
+    piece: (a, b) => ({ kind: 'line', x0: x0 + dx * a, y0: y0 + dy * a, x1: x0 + dx * b, y1: y0 + dy * b }),
+  })
+  const corner = (cx, cy, a0) => ({
+    len: (Math.PI * r) / 2,
+    at: (d) => {
+      const a = a0 + d / r
+      return [cx + r * Math.cos(a), cy + r * Math.sin(a), a + Math.PI / 2]
+    },
+    piece: (a, b) => ({ kind: 'corner', cx, cy, r, from: (a0 + a / r) * DEG, to: (a0 + b / r) * DEG }),
+  })
   return [
-    [sx / 2, (d) => [W / 2 + d, m, 0]],
-    [q, arc(R - r, m + r, -Math.PI / 2)],
-    [sy, (d) => [R, m + r + d, Math.PI / 2]],
-    [q, arc(R - r, B - r, 0)],
-    [sx, (d) => [R - r - d, B, Math.PI]],
-    [q, arc(m + r, B - r, Math.PI / 2)],
-    [sy, (d) => [m, B - r - d, -Math.PI / 2]],
-    [q, arc(m + r, m + r, Math.PI)],
-    [sx / 2, (d) => [m + r + d, m, 0]],
+    straight(sx / 2, W / 2, m, 1, 0),
+    corner(R - r, m + r, -Math.PI / 2),
+    straight(sy, R, m + r, 0, 1),
+    corner(R - r, B - r, 0),
+    straight(sx, R - r, B, -1, 0),
+    corner(m + r, B - r, Math.PI / 2),
+    straight(sy, m, B - r, 0, -1),
+    corner(m + r, m + r, Math.PI),
+    straight(sx / 2, m + r, m, 1, 0),
   ]
 }
 
@@ -39,31 +103,22 @@ function path(shape) {
   const key = shape.inset + ':' + shape.r
   if (!cache[key]) {
     const segs = segments(shape)
-    cache[key] = { segs, length: segs.reduce((s, [len]) => s + len, 0) }
+    cache[key] = { segs, length: segs.reduce((s, seg) => s + seg.len, 0) }
   }
   return cache[key]
 }
 
-// [x, y, angle] at rail hour h (0..12)
+const wrap12 = (h) => ((h % 12) + 12) % 12
+
+// [x, y, direction angle] at rail hour h (0..12)
 export function railPoint(h, shape = OUTER) {
   const { segs, length } = path(shape)
-  let d = ((((h % 12) + 12) % 12) / 12) * length
-  for (const [len, at] of segs) {
-    if (d <= len) return at(d)
-    d -= len
+  let d = (wrap12(h) / 12) * length
+  for (const seg of segs) {
+    if (d <= seg.len) return seg.at(d)
+    d -= seg.len
   }
-  return segs[0][1](0)
-}
-
-// Points every ~step px from hour h0 to h1 (clockwise; h1 may be < h0 to wrap)
-export function railPolyline(h0, h1, shape = OUTER, step = 6) {
-  const { length } = path(shape)
-  let span = h1 - h0
-  if (span < 0) span += 12
-  const n = Math.max(1, Math.ceil(((span / 12) * length) / step))
-  const pts = []
-  for (let i = 0; i <= n; i++) pts.push(railPoint(h0 + (span * i) / n, shape))
-  return pts
+  return segs[0].at(0)
 }
 
 // Length in px of one rail hour on this shape
@@ -71,8 +126,85 @@ export function hourLength(shape = OUTER) {
   return path(shape).length / 12
 }
 
+// The rail from hour h0 clockwise to h1 (h1 < h0 wraps past 12), as the path's own pieces:
+//   { kind: 'line', x0, y0, x1, y1 }          a straight run (horizontal or vertical)
+//   { kind: 'corner', cx, cy, r, from, to }   part of a corner circle, degrees (0 = 3 o'clock, clockwise)
+// A handful of system-drawn shapes instead of hundreds of tiny segments: smooth, and cheap to update.
+// Spans under half a pixel give no pieces.
+export function railPieces(h0, h1, shape = OUTER) {
+  const { segs, length } = path(shape)
+  const span = wrap12(h1 - h0)
+  const d0 = (wrap12(h0) / 12) * length
+  const d1 = d0 + (span / 12) * length
+  if (d1 - d0 < 0.5) return []
+  const pieces = []
+  let start = 0
+  // Twice round, so a span past 12 o'clock carries on from the start of the path
+  for (let lap = 0; lap < 2; lap++) {
+    for (const seg of segs) {
+      const a = Math.max(d0, start) - start
+      const b = Math.min(d1, start + seg.len) - start
+      if (b - a > 1e-6) pieces.push(seg.piece(a, b))
+      start += seg.len
+    }
+  }
+  // The top's two halves meet at 12 o'clock: one run
+  return pieces.reduce((out, p) => {
+    const q = out[out.length - 1]
+    if (q && q.kind === 'line' && p.kind === 'line' && q.x1 === p.x0 && q.y1 === p.y0) q.x1 = p.x1
+    else out.push(p)
+    return out
+  }, [])
+}
+
+// The two ends of a list of pieces: [[x, y] at the start, [x, y] at the end]
+export function pieceEnds(pieces) {
+  const end = (p, last) => {
+    if (p.kind === 'line') return last ? [p.x1, p.y1] : [p.x0, p.y0]
+    const a = (last ? p.to : p.from) / DEG
+    return [p.cx + p.r * Math.cos(a), p.cy + p.r * Math.sin(a)]
+  }
+  return [end(pieces[0], false), end(pieces[pieces.length - 1], true)]
+}
+
+// Widget box of a straight piece drawn `width` px thick with round ends (FILL_RECT, radius = width/2)
+export function lineBox({ x0, y0, x1, y1 }, width) {
+  const r = width / 2
+  const left = Math.round(Math.min(x0, x1) - r), top = Math.round(Math.min(y0, y1) - r)
+  return {
+    x: left, y: top, w: Math.round(Math.max(x0, x1) + r) - left, h: Math.round(Math.max(y0, y1) + r) - top, radius: r,
+  }
+}
+
+// Widget box of a round dot of diameter d centred on (x, y) (FILL_RECT, radius = d/2: CIRCLE can't move)
+export function discBox(x, y, d) {
+  return { x: Math.round(x - d / 2), y: Math.round(y - d / 2), w: d, h: d, radius: d / 2 }
+}
+
+// Hour ticks on the inner ring: every hour but the numerals' (12, 3, 9)
+export const TICK_HOURS = [1, 2, 4, 5, 6, 7, 8, 10, 11]
+export const TICK = { along: 4, across: 8 }
+
+// A tick's box: a short dash across the ring. All ticks sit on (or within 4° of) a straight run,
+// so an axis-aligned rectangle is exact enough (tested).
+export function tickBox(h) {
+  const [x, y, dir] = railPoint(h, INNER)
+  const horizontal = Math.abs(Math.cos(dir)) > Math.abs(Math.sin(dir))
+  const w = horizontal ? TICK.along : TICK.across
+  const hh = horizontal ? TICK.across : TICK.along
+  return { x: Math.round(x - w / 2), y: Math.round(y - hh / 2), w, h: hh }
+}
+
 // Distance between two rail hours, going round the clock
 export const hoursApart = (a, b) => Math.min(Math.abs(a - b), 12 - Math.abs(a - b))
+
+// The lime arc runs to the rail's target — the end of an ongoing event, else the start of the next
+// one — only once that is at most `minutes` away (phone setting "rail"): a long-lit arc costs battery.
+export function arcInWindow(subject, minutes) {
+  if (!subject) return false
+  const away = subject.ongoing ? subject.endInMin : subject.inMin
+  return away >= 0 && away <= minutes
+}
 
 // Where a time label for rail hour h goes: on the inner ring, pulled towards the centre (just clear
 // of the edge at the top and bottom, further in on the sides where the labels are wider than tall).

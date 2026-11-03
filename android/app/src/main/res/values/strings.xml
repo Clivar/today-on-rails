@@ -28,6 +28,9 @@
     <string name="face_today_card_when_before">%1$s before</string>
     <string name="face_today_card_when_both">During events and %1$s before</string>
     <string name="today_card_note">The Today card shows one event large, with what comes after it. It helps to stay on track, during an event or just before one. The rest of the time the watch shows a big clock.</string>
+    <string name="rail_label">Green rail</string>
+    <string name="rail_note">The green rail runs along the edge of the watch from now to your next event, so you see how far away it is without reading a time. A long rail is hard to miss: an event that\'s still hours away stays in the back of your mind. During an event the rail runs to its end and shows the time that\'s left. A longer reach is the better reminder; a shorter one saves battery.</string>
+    <string name="choice_default">%1$s (default)</string>
 
     <string name="nudges">Nudges</string>
     <string name="nudges_note">The watch buzzes by itself at these moments, while its screen is on or dimmed (always-on). With the screen fully off it can\'t, so a buzz can be missed then. No notifications involved.</string>
@@ -58,6 +61,13 @@
         <item>3 hours before</item>
         <item>6 hours before</item>
         <item>12 hours before</item>
+    </string-array>
+    <string-array name="rail_choices">
+        <item>From 30 minutes before</item>
+        <item>From 1 hour before</item>
+        <item>From 3 hours before</item>
+        <item>From 6 hours before</item>
+        <item>From 12 hours before</item>
     </string-array>
     <string-array name="get_ready_choices">
         <item>30 minutes before</item>

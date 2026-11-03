@@ -21,7 +21,8 @@ Where things stand and how to pick it up. Read README.md (what it is, how to bui
   calendar selection, layout settings with drawings of each layout, nudges, weather (Open-Meteo, optional),
   battery-friendly sync. Three permissions, no dependencies, lint clean.
 - Tests (`npm run test:all`, see tests/README.md): parity cases shared by both sides
-  (`tests/parity/cases.json`, 6 cases), watchface 21 + 6 parity, phone 8 + parity; lint clean.
+  (`tests/parity/cases.json`, 6 cases); as of 2026-11-03 `npm test` runs 71 (watch + parity), the
+  phone 9 + parity; lint clean.
 - 2026-11-01: fixed minute digits sliding sideways ("0"/"4" were wider than their text boxes).
 
 **Owner's setup:** Amazfit Bip 6, Pixel (GrapheneOS), Gadgetbridge 0.95.1 (F-Droid build). Watch display:
@@ -36,6 +37,59 @@ access (on purpose). Breezy Weather is installed — its Gadgetbridge weather se
 **Secrets:** `android/release.jks` + `android/keystore.properties` (gitignored). The owner must back them up;
 every update of the app has to be signed with this key. On a new machine, copy them into `android/`.
 
+## 2026-11-03: buzzes, rail, test builds
+
+**Found on the watch (verified):** no buzz while always-on, and a second buzz on raising the wrist again
+in the same minute. Cause: the face is rebuilt on every lit ↔ dim switch, which wiped the in-memory
+"already buzzed" list. With state in storage, buzzes came from the dim instance (seen at 0:57 and 1:00).
+The old buzz test had never buzzed (its agenda dropped the current minute), so the earlier "buzzes while
+dimmed" note had not really been tested.
+
+**Changed since (tests pass; device checks below):**
+
+- **Buzzer:** every moment is an absolute minute; the watch stores one value, the minute of its last
+  buzz (`lastBuzz`), and buzzes only for a due moment later than that. A moment up to a minute past
+  still buzzes (the screen came on just after); a reminder just past is kept for that in
+  `agenda.justPast`, which only the buzzer reads. The older `buzzed` storage key is no longer read.
+- **Build per scene:** a dimmed instance builds only the always-on widgets, a lit one both
+  (`data/refresh.js`); a refresh with the same inputs as the last is skipped (`refreshKey`). `pause_call`
+  is gone: the face is rebuilt as it dims, so that drawing was thrown away, and it ran in the
+  lit → dim switch, which lagged.
+- **Rail from widgets** instead of a canvas: `STROKE_RECT` base ring, `FILL_RECT` straight runs and dots,
+  `ARC` corners. Every mark keeps ≥ 4 px from the screen edge (tested). How the watch draws ARC and
+  STROKE_RECT was measured on the watch (`DEVICE` in `ui/railGeometry.js`): the first try had the ARC
+  stroke centred and the corners sat 4 px inside the straight runs; with `arcStroke: 'inside'` they join
+  seamlessly (measured: corners and straight runs both centred 13 px in).
+- **Green rail setting:** phone "Green rail" (30 min … 12 h, default 3 h) → `rail=<min>` in the cfg
+  (the watch falls back to the same 180 when it's missing). The lime arc shows only when the event (its end while on) is
+  that close; the phone's drawings follow the setting.
+- **Wrap-up text:** in an event's last 5 minutes the label reads "WRAP IT UP · 4 MIN LEFT" in orange
+  (dim screen: "WRAP IT UP · UNTIL 10:30" in a dim orange).
+- **No demo code anywhere** (owner's decision): the watch's demo mode (`demos.js`, `demo-name.js`,
+  `align`, `aod-check`, `buzz-test`) is gone, and so is the phone's short-lived debug "Testing" section
+  and `buzz=minute`. Test data now goes in only through test builds: `tools/build.sh buzz|demo|rail|wrap-up`
+  (README "Test builds"). They need no phone.
+- The phone dropdowns mark their default; the Today card before an event now defaults to 30 min.
+
+**Device checks:**
+
+1. Done — `buzz`: the owner confirmed one buzz a minute on the wrist (2026-11-03). Still worth noticing
+   over time: no second buzz on a lit/dim switch in the same minute, and quiet after 60 minutes.
+2. `wrap-up`: the first-run time survives rebuilds and screen off/on — the orange label and one end
+   buzz come about 3 minutes after installing (not after the last wake), then "next" for the following
+   event.
+3. `rail`: done for the drawing (angles, joins, smooth corners — screenshot measured). Open: on the
+   wrist, no dot or cap clipped at the edge in the four corners and at 12/6 (screenshots can't show it).
+4. `demo`: every layout in turn (Today card with its list, next, get ready, Free until …); the current
+   temperature still shows.
+5. Gadgetbridge installs a test `.zab` over the face, and reinstalling `watchface/dist/*.zab` puts the
+   real face back (real name in the list); the leftover `lastBuzz` / `firstRun-*` storage does no harm
+   (the next real start buzz fires).
+6. A real calendar event buzzing while dimmed.
+7. Phone: the release build with the "Green rail" dropdown is installed (seen 2026-11-03; it replaced the
+   short-lived debug build, whose leftover settings are unused). Open: `rail=<min>` reaching the watch
+   on its next weather fetch and the arc following it on the real face.
+
 ## Known limitations
 
 - New calendar data reaches the watch on its own weather fetch: up to ~30 min (occasionally longer).
@@ -46,7 +100,8 @@ every update of the app has to be signed with this key. On a new machine, copy t
   dimmed, so live countdowns would be possible).
 - The agenda text is capped at 400 characters (verified 200 on the face); a busy week gets cut off at the
   later days until they come closer.
-- English only; 12/24 h follows the watch setting (the owner uses 24 h; 12 h layout is tested in demos).
+- English only; 12/24 h follows the watch setting (the owner uses 24 h; the 12 h layout is covered by
+  unit tests, on the watch only by switching it to 12 h).
 - Reminders = calendar events without duration (Google Tasks/Reminders aren't in the calendar provider).
 
 ## Ideas backlog (discussed, not built — ask the owner first)
@@ -90,5 +145,5 @@ note / reminder / alarm / answer, private (no vendor cloud). The watchface came 
    charging with Stay awake on.
 2. `adb pair <ip:pairport> <code>` then `adb connect <ip:port>`.
 3. `tools/build.sh && tools/install.sh watchface/dist/*.zab`, `tools/device/watchshot.sh` to see the watch.
-4. After demo/test builds, always reinstall the real face (`tools/build.sh` without a demo).
+4. After a test build, always reinstall the real face (`tools/build.sh` without a name, then install).
 5. When done, the owner turns Wireless debugging and Stay awake off.

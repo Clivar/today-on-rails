@@ -50,6 +50,7 @@ object Sync {
             buzzAtStart = settings.buzzAtStart,
             buzzBeforeEnd = settings.buzzBeforeEnd,
             buzzGetReady = settings.buzzGetReady,
+            railMinutes = settings.railMinutes,
         )
         val agenda = AgendaText.build(settings.city, LocalDate.now(), events, watch, withWeather = forecast != null)
         settings.lastAgenda = agenda
