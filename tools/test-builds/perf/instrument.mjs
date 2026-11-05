@@ -81,13 +81,14 @@ rewrite(/\.onPerMinute\(refresh\)/, ".onPerMinute(__perf.timed('tick', refresh))
 rewrite(/\.onLastChange\(refresh\)/, ".onLastChange(__perf.timed('heart', refresh))", 'the heart reading')
 rewrite(/resume_call: refresh\b/, "resume_call: __perf.timed('resume', refresh)", 'the wake')
 // Where a refresh's time goes (named spans, summed per refresh; see perf.js span()):
-//   in = readInputs, st = readState (incl. hr), show = both sets drawn, mkN / mkA = creating the sets
+//   in = readInputs, st = readState (incl. hr), show = both screens drawn, mkN / mkA = building the
+//   lit / dim screen
 rewrite(/readInputs\(sensors\)/, "__perf.span('in', () => readInputs(sensors))", 'reading the inputs')
 rewrite(/readState\(inputs, sensors\)/, "__perf.span('st', () => readState(inputs, sensors))", 'readState')
-rewrite(/set\.show\(state\)/, "__perf.span('show', () => set.show(state))", 'drawing a set')
-rewrite(/createSet\('normal', createScreenOnLayouts\)/, "__perf.span('mkN', () => createSet('normal', createScreenOnLayouts))", 'creating the lit set')
-rewrite(/createSet\('alwaysOn', \(\) => createAlwaysOnLayouts\(is24h\(sensors\.time\)\)\)/,
-  "__perf.span('mkA', () => createSet('alwaysOn', () => createAlwaysOnLayouts(is24h(sensors.time))))", 'creating the always-on set')
+rewrite(/screens\[i\]\.show\(state\)/, "__perf.span('show', () => screens[i].show(state))", 'drawing a screen')
+rewrite(/createScreen\('lit', createLitLayouts\)/, "__perf.span('mkN', () => createScreen('lit', createLitLayouts))", 'building the lit screen')
+rewrite(/createScreen\('dim', \(screen\) => createDimLayouts\(screen, is24h\(sensors\.time\)\)\)/,
+  "__perf.span('mkA', () => createScreen('dim', (screen) => createDimLayouts(screen, is24h(sensors.time))))", 'building the dim screen')
 index = "import * as __perf from '../src/testBuild/perf/perf.js'\n" + index
 fs.writeFileSync(entry, index)
 

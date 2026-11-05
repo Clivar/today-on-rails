@@ -1,6 +1,6 @@
 // The rail's geometry (watchface/src/ui/railGeometry.js): the arc as a few smooth pieces, every mark
 // well inside the visible screen (its edge clipped dots on the watch), and the arc's time window.
-// At the end, the rail's widgets (components/rail.js, alwaysOnRail.js with mocked @zos, zosMock.mjs):
+// At the end, the rail's widgets (components/rail.js, dimRail.js with mocked @zos, zosMock.mjs):
 // created on demand, and still stacked in the right order.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -13,8 +13,9 @@ import { installZosMock } from './zosMock.mjs'
 
 const zos = installZosMock()
 const { createRail } = await import('../../watchface/src/components/rail.js')
-const { createAlwaysOnRail } = await import('../../watchface/src/components/alwaysOnRail.js')
-const { withWidgetLevel } = await import('../../watchface/src/ui/widgets.js')
+const { createDimRail } = await import('../../watchface/src/components/dimRail.js')
+const { createScreen } = await import('../../watchface/src/ui/screen.js')
+const screen = (name) => createScreen(name, () => ({}))
 
 const MARGIN = 4 // px every visible shape keeps from the screen's edge
 const MINUTES = Array.from({ length: 720 }, (_, i) => i / 60) // every minute round the rail
@@ -98,7 +99,7 @@ test('empty and tiny spans draw nothing', () => {
 })
 
 test('every dot, ring and cap stays 4 px inside the screen, all the way round', () => {
-  const sizes = [MARK.subject.d, MARK.ring.d, MARK.ring.dim, MARK.dot.d, MARK.now.d, MARK.alwaysOn.d, ARC_WIDTH]
+  const sizes = [MARK.subject.d, MARK.ring.d, MARK.ring.plain, MARK.dot.d, MARK.now.d, MARK.dim.d, ARC_WIDTH]
   for (const h of MINUTES) {
     const [x, y] = railPoint(h, OUTER)
     for (const d of sizes) {
@@ -154,7 +155,7 @@ test('the 12 numeral stays clear of the date (x 40..150, y 40..64)', () => {
 test('the always-on dot is centred exactly where the lit subject dot is', () => {
   for (const h of MINUTES) {
     const [x, y] = railPoint(h, OUTER)
-    const lit = discBox(x, y, MARK.subject.d), dim = discBox(x, y, MARK.alwaysOn.d)
+    const lit = discBox(x, y, MARK.subject.d), dim = discBox(x, y, MARK.dim.d)
     assert.equal(lit.x + lit.w / 2, dim.x + dim.w / 2)
     assert.equal(lit.y + lit.h / 2, dim.y + dim.h / 2)
   }
@@ -267,7 +268,7 @@ const inOrder = (names) => names.every((n, i) => i === 0 || ORDER.indexOf(names[
 
 test('rail widgets: no arc, no arc widgets', () => {
   zos.newInstance()
-  const rail = createRail()
+  const rail = createRail(screen('lit'))
   const { state, options } = railState(9 * 60, { start: 14 * 60, end: 15 * 60, reminders: [10 * 60] })
   rail.render(state, Object.assign(options, { emphasis: false }))
   assert.equal(zos.widgets.filter((w) => w.type === 'ARC').length, 0)
@@ -287,7 +288,7 @@ test('rail widgets stay stacked in order while the pools grow, minute by minute'
   const count = (names, name) => names.filter((n) => n === name).length
   const seen = {}
   zos.newInstance()
-  const rail = createRail()
+  const rail = createRail(screen('lit'))
   for (let now = 8 * 60 + 30; now < event.end; now++) {
     const { state, options } = railState(now, event)
     rail.render(state, options)
@@ -307,7 +308,7 @@ test('rail widgets stay stacked in order while the pools grow, minute by minute'
   for (const [now, names] of Object.entries(seen)) {
     zos.newInstance()
     const { state, options } = railState(Number(now), event)
-    createRail().render(state, options)
+    createRail(screen('lit')).render(state, options)
     assert.deepEqual(layers(zos.widgets), names, `${now} min: a fresh rail`)
     assert.ok(onlyCoveredOrHoles(zos.widgets), `${now} min: nothing hidden but unused holes and what the label covers`)
   }
@@ -315,7 +316,7 @@ test('rail widgets stay stacked in order while the pools grow, minute by minute'
 
 test('the always-on rail creates its dot and label at the always-on level, only when there is an event', () => {
   zos.newInstance()
-  const rail = withWidgetLevel('alwaysOn', () => createAlwaysOnRail())
+  const rail = createDimRail(screen('dim'))
   assert.equal(zos.widgets.length, 3) // the numerals
   rail.render({ now: { hours: 9, minutes: 0 }, is24: true, subject: null, agenda: { items: [] } }, { avoid: [] })
   assert.equal(zos.widgets.length, 3)
@@ -324,6 +325,6 @@ test('the always-on rail creates its dot and label at the always-on level, only 
   assert.deepEqual(zos.widgets.map((w) => w.type), ['TEXT', 'TEXT', 'TEXT', 'FILL_RECT', 'TEXT'])
   assert.ok(zos.widgets.every((w) => w.props.show_level === 'ONAL_AOD'))
   const [x, y] = railPoint(10.75, OUTER)
-  assert.deepEqual(zos.widgets[3].props, Object.assign(discBox(x, y, MARK.alwaysOn.d), { color: C.aodLime, show_level: 'ONAL_AOD' }))
+  assert.deepEqual(zos.widgets[3].props, Object.assign(discBox(x, y, MARK.dim.d), { color: C.dimLime, show_level: 'ONAL_AOD' }))
   assert.equal(zos.widgets[4].props.text, '10:45')
 })

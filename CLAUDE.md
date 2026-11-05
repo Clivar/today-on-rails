@@ -71,11 +71,12 @@ emulation and gets the text back as the city name; the watchface reads `new Weat
 - **Always-on (AOD):** while dimmed only widgets with `show_level: ONAL_AOD` show. The face is **rebuilt on
   every switch** between lit and dim (`getScene()`: 1 lit, 3 dim) and after the screen was off, so
   in-memory state is lost: keep what must survive in `localStorage` (`data/saved.js`, needs the
-  `device:os.local_storage` permission). A dimmed instance builds only the always-on widgets, a lit
-  one builds both sets (`data/refresh.js`, `setsForScene`); a refresh with the same inputs as the last
-  one is skipped (`refreshKey`).
-  **Flag every normal widget `ONLY_NORMAL`** (unflagged ones show in both and broke AOD) — `ui/widgets.js`
-  does this via `withWidgetLevel`. A **CANVAS flagged ONAL_AOD has no drawing methods** ("not a function").
+  `device:os.local_storage` permission). In the code the two are **screens**, `'lit'` and `'dim'`
+  (`ui/screen.js`); a dimmed instance builds only the dim screen, a lit one both
+  (`data/refresh.js` `screensToBuild`).
+  **Flag every lit widget `ONLY_NORMAL`** (unflagged ones show on both and broke AOD): every widget is
+  made by its screen (`screen.widget()` / `screen.text()`, the screen passed explicitly to every
+  component), which sets `show_level`. A **CANVAS flagged ONAL_AOD has no drawing methods** ("not a function").
   AOD only happens **while worn**; then the face's code does run (minute ticks continue). Off the wrist
   the screen just turns off and nothing runs — don't test AOD with the watch on a table.
 - `IMG_TIME` gives every digit a **fixed-width slot** (width of the digit images; `hour_space` between).
@@ -87,6 +88,23 @@ emulation and gets the text back as the city name; the watchface reads `new Weat
 - The screen edge **clips marks** near it: with the rail's outer ring 10 px in, its 16 px dot was
   visibly cut. The ring now sits 13 px in, and every dot, cap and arc keeps ≥ 4 px from the rounded edge
   (`tests/watch/rail.test.mjs`).
+- **JS is slow on the watch** (measured 2026-11-04 with `tools/build.sh perf`, 200 × each): object spread
+  `{ ...a }` **≈ 3.9 ms per use** (the build tool turns it into a slow helper) → never in `watchface/`,
+  guarded by `tests/watch/noSpread.test.mjs`; `Object.assign` ≈ 0.5 ms; array spread, destructuring,
+  `for…of`, `forEach`, a function call ≈ 0.1–0.2 ms; `Date.now()` 0.15 ms (1 ms resolution); proxy
+  lookups like `ui.prop.MORE` ≈ 0.02 ms; `createWidget` ≈ 4 ms. Build times: lit 1845 ms → 833 ms
+  (spreads removed) → 447 ms (create only what's shown, change-tracked writes); dim 379 → 230 → 139 ms.
+  Node with mocks is ~100× faster than the watch: measure on the device, not in Node.
+- `WatchFace({...})` must be **called in the entry file** (`watchface/index.js`) itself: calling it from
+  another module left the face blank.
+- **Three caches, one place each** (components contain none):
+  drawing — every widget is a `Widget` (`ui/widgets.js`) that skips writes that change nothing;
+  creating — layouts, frame parts and pools are made when first shown (`ui/lazy.js` `lazy`, `pool`);
+  refreshing — a refresh with the same inputs as the last is skipped (`data/refresh.js` `refreshKey`,
+  `createRedrawCheck`). Storage (`data/saved.js`) is for what must outlive an instance.
+- **Stacking:** widgets stack in creation order, so whatever is made later lies on top.
+  `layouts/lit/frame.js` fixes the order (background, rail, the first layout's frame parts and
+  widgets, record button); the rail's pools re-create the layers above one that grows (`components/rail.js`).
 - The watch **vibrates from a watchface**: `new Vibrator().start({ mode: VIBRATOR_SCENE_NOTIFICATION })`
   (`@zos/sensor`), no permission. Works while lit and from the dim (AOD) instance (verified 2026-11-03).
 - `launchApp` from a watchface works (`SYSTEM_APP_VOICE_MEMO`, `native: true`); `launchApp` takes no params.
@@ -157,6 +175,13 @@ given, find the pairing port with a port scan of 30000–50000 (`adb pair ip:por
   - `rail`: long arcs through the corners and a dot on every hour, whatever the time: screen-edge
     clipping and the `DEVICE` conventions of `ui/railGeometry.js`.
   - `wrap-up`: "WRAP IT UP" and the end buzz 3 minutes after installing, then the next event.
+  - `perf`: times `build()` and every refresh on the watch and shows it on screen (a busy Today card),
+    for the lit and the dim instance (each keeps the other's last numbers in storage). Lines: build ms
+    and first refresh; widgets and setProperty calls; the last refresh; where the first refresh's time
+    went (`mkN`/`mkA` building the lit/dim screen, `in` inputs, `st` readState, `hr` heart, `show`
+    drawing, `tw` text measuring); two `x200 ms` calibration lines. `PERF_COUNT=0 tools/build.sh perf`
+    for clean times (per-call counting adds two `Date.now()` per widget call). The rewrites live in
+    `tools/test-builds/perf/instrument.mjs` and stop the build if `index.js` no longer matches.
 
   **Put the real face back afterwards:** `tools/build.sh && tools/install.sh watchface/dist/*.zab`.
   `tests/watch/testBuilds.test.mjs` checks each test agenda. 12-hour layouts: switch the watch to 12 h.

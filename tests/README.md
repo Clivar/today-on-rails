@@ -13,9 +13,12 @@ npm run test:all     # everything: the above, the phone app's unit tests and And
 | `watch/agenda.test.mjs` | the parser's edge cases (settings incl. `rail`, overnight, year rollover), which layout is chosen when, "Free until …", wrap-up, a reminder just past kept for the buzzer only |
 | `watch/buzzes.test.mjs` | when the watch buzzes: each moment at its minute, a minute late still, never twice (the stored last-buzz minute survives rebuilds), one buzz for moments in the same minute, clock set back, daily events |
 | `watch/labels.test.mjs` | the label above an event ("NEXT · IN 10 MIN", "WRAP IT UP · 4 MIN LEFT", fixed times on the dim screen) and that the longest ones fit |
-| `watch/rail.test.mjs` | the rail's geometry: the arc as a few joined pieces, every mark ≥ 4 px inside the rounded screen edge, halos clear of the ticks, the always-on dot on the lit one, the arc's time window, ARC/STROKE_RECT props under the assumed `DEVICE` conventions |
-| `watch/refresh.test.mjs` | which widget sets an instance builds for its scene, and that a refresh with nothing new is skipped |
+| `watch/rail.test.mjs` | the rail's geometry: the arc as a few joined pieces, every mark ≥ 4 px inside the rounded screen edge, halos clear of the ticks, the always-on dot on the lit one, the arc's time window, ARC/STROKE_RECT props under the `DEVICE` conventions measured on the watch |
+| `watch/refresh.test.mjs` | which screen the watch shows and which screens an instance builds, and that a refresh with nothing new is skipped |
 | `watch/testBuilds.test.mjs` | the test builds' agendas (`tools/test-builds/`): each parses and shows the intended layouts and buzzes at the intended minutes |
+| `watch/buildCost.test.mjs` | loads the real face with mocked `@zos` (`watch/zosMock.mjs`, via Node module hooks) and counts widgets, setProperty and sensor calls for a lit and a dim build, a wake and a minute tick, against budgets (so a build can't silently get heavier); a wake with nothing new does no drawing; the `perf` test build's rewrites still match `index.js` |
+| `watch/widgets.test.mjs` | a widget's write that changes nothing never reaches the watch; every widget shows only on its screen |
+| `watch/noSpread.test.mjs` | no object spread in `watchface/` (3.9 ms per use on the watch) |
 | `watch/clock.test.mjs` | the clock's digit boxes are wider than every glyph and centred on their slots (otherwise a digit slides sideways on the watch), and the widest time fits the screen |
 | `android/app/src/test/.../agenda/AgendaTextTest.kt` | the phone's text builder: title cleaning, the 400-character cap, buzz and rail settings |
 

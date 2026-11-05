@@ -1,7 +1,7 @@
 // The Today card's list: the next two items after the event shown ("● 7:30 Walk the dog").
 import ui from '@zos/ui'
 import { C, F } from '../ui/theme.js'
-import { trackedWidget, trackedText, cssTop, showAll } from '../ui/widgets.js'
+import { cssTop, showAll } from '../ui/widgets.js'
 import { textWidth, fitText } from '../ui/text.js'
 import { formatTime, itemsAfter } from '../data/agenda.js'
 
@@ -9,15 +9,15 @@ const TOP = 332
 const ROW = 21 * 1.2 + 10
 const RIGHT = 286 // stay clear of the record button
 
-export function createUpNext() {
+export function createUpNext(screen) {
   const rows = [0, 1].map((i) => {
     const cy = Math.round(TOP + i * ROW + 12.6)
     return {
-      dot: trackedWidget(ui.widget.CIRCLE, { center_x: 45, center_y: cy, radius: 5, color: C.muted }),
-      ring: trackedWidget(ui.widget.CIRCLE, { center_x: 45, center_y: cy, radius: 5, color: C.text }),
-      hole: trackedWidget(ui.widget.CIRCLE, { center_x: 45, center_y: cy, radius: 3, color: C.bg }),
-      time: trackedText({ x: 60, y: cssTop(TOP + i * ROW, 21, 1.2), w: 70, text_size: 21, font: F.semibold, color: C.muted }),
-      title: trackedText({ x: 114, y: cssTop(TOP + i * ROW, 21, 1.2), w: 180, text_size: 21, font: F.medium, color: C.text }),
+      dot: screen.widget(ui.widget.CIRCLE, { center_x: 45, center_y: cy, radius: 5, color: C.muted }),
+      ring: screen.widget(ui.widget.CIRCLE, { center_x: 45, center_y: cy, radius: 5, color: C.text }),
+      hole: screen.widget(ui.widget.CIRCLE, { center_x: 45, center_y: cy, radius: 3, color: C.bg }),
+      time: screen.text({ x: 60, y: cssTop(TOP + i * ROW, 21, 1.2), w: 70, text_size: 21, font: F.semibold, color: C.muted }),
+      title: screen.text({ x: 114, y: cssTop(TOP + i * ROW, 21, 1.2), w: 180, text_size: 21, font: F.medium, color: C.text }),
     }
   })
 

@@ -1,10 +1,13 @@
-// Tracked widgets (watchface/src/ui/widgets.js): a write that changes nothing never reaches the watch.
+// Widgets (watchface/src/ui/widgets.js, made by a screen: ui/screen.js): a write that changes nothing
+// never reaches the watch, and every widget shows only on its own screen.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { installZosMock } from './zosMock.mjs'
 
 const zos = installZosMock()
-const { tracked, trackedWidget, trackedText, showAll } = await import('../../watchface/src/ui/widgets.js')
+const { Widget, showAll } = await import('../../watchface/src/ui/widgets.js')
+const { createScreen } = await import('../../watchface/src/ui/screen.js')
+const widget = (w, props) => new Widget(w, props)
 
 // A stand-in widget that records its setProperty calls
 function fake() {
@@ -14,7 +17,7 @@ function fake() {
 
 test('set: skipped while every value is what the widget has; otherwise one call with the props as given', () => {
   const w = fake()
-  const t = tracked(w, { x: 10, y: 20, w: 30, color: 1 })
+  const t = widget(w, { x: 10, y: 20, w: 30, color: 1 })
   t.set({ x: 10, y: 20 })
   t.set({ color: 1 })
   assert.deepEqual(w.calls, [], 'the creation props are remembered')
@@ -33,7 +36,7 @@ test('set: skipped while every value is what the widget has; otherwise one call 
 
 test('setText: skipped when the text is the same, whether it came from the props, set or setText', () => {
   const w = fake()
-  const t = tracked(w, { text: 'a' })
+  const t = widget(w, { text: 'a' })
   t.setText('a')
   assert.deepEqual(w.calls, [])
   t.setText('b')
@@ -48,7 +51,7 @@ test('setText: skipped when the text is the same, whether it came from the props
 
 test('show: a new widget shows; only a change of visibility is sent, as a boolean', () => {
   const w = fake()
-  const t = tracked(w, {})
+  const t = widget(w, {})
   t.show(true)
   t.show('yes')
   assert.deepEqual(w.calls, [])
@@ -62,7 +65,7 @@ test('show: a new widget shows; only a change of visibility is sent, as a boolea
 
 test('set leaves the visibility alone; place sets and shows', () => {
   const w = fake()
-  const t = tracked(w, { x: 0 })
+  const t = widget(w, { x: 0 })
   t.show(false)
   t.set({ x: 5 })
   assert.deepEqual(w.calls, [['VISIBLE', false], ['MORE', { x: 5 }]])
@@ -74,7 +77,7 @@ test('set leaves the visibility alone; place sets and shows', () => {
 
 test('showAll: each widget sends only its own change', () => {
   const ws = [fake(), fake(), fake()]
-  const ts = ws.map((w) => tracked(w, {}))
+  const ts = ws.map((w) => widget(w, {}))
   ts[1].show(false)
   showAll(ts, true)
   assert.deepEqual(ws.map((w) => w.calls.length), [0, 2, 0])
@@ -83,10 +86,11 @@ test('showAll: each widget sends only its own change', () => {
   assert.deepEqual(ws.map((w) => w.calls.length), [1, 3, 1])
 })
 
-test('trackedWidget / trackedText: made with their props at the level, which they remember', () => {
+test('screen.widget / screen.text: made with their props on their screen, which they remember', () => {
   zos.reset()
-  const shape = trackedWidget('FILL_RECT', { x: 1, y: 2, w: 3, h: 4, color: 5 })
-  const label = trackedText({ x: 40, y: 50, text_size: 20 })
+  const lit = createScreen('lit', () => ({}))
+  const shape = lit.widget('FILL_RECT', { x: 1, y: 2, w: 3, h: 4, color: 5 })
+  const label = lit.text({ x: 40, y: 50, text_size: 20 })
   assert.equal(zos.stats.levels.ONLY_NORMAL, 2)
   shape.set({ x: 1, y: 2, w: 3, h: 4, color: 5 })
   shape.show(true)
@@ -98,4 +102,12 @@ test('trackedWidget / trackedText: made with their props at the level, which the
   assert.deepEqual(zos.stats.set, { TEXT: 1, MORE: 1 })
   const [w1, w2] = zos.widgets.slice(-2)
   assert.deepEqual([w1.props.x, w2.props.text], [2, 'Fri 23 Oct'])
+})
+
+test('a widget shows only on its screen: lit ONLY_NORMAL, dim ONAL_AOD', () => {
+  zos.reset()
+  createScreen('lit', () => ({})).text({ text_size: 20 })
+  createScreen('dim', () => ({})).text({ text_size: 20 })
+  const [lit, dim] = zos.widgets.slice(-2)
+  assert.deepEqual([lit.props.show_level, dim.props.show_level], ['ONLY_NORMAL', 'ONAL_AOD'])
 })

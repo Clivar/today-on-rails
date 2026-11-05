@@ -90,6 +90,35 @@ dimmed" note had not really been tested.
    short-lived debug build, whose leftover settings are unused). Open: `rail=<min>` reaching the watch
    on its next weather fetch and the arc following it on the real face.
 
+## 2026-11-04: faster build() (wrist raise ↔ always-on)
+
+The owner reported a lag between raising the wrist and the always-on screen. Measured on the watch with
+the new `perf` test build (`PERF_COUNT=0 tools/build.sh perf`):
+
+| | start | spreads removed | now |
+|---|---|---|---|
+| lit build (wrist raise) | 1845 ms | 833 ms | **447 ms** |
+| dim build (always-on) | 379 ms | 230 ms | **139 ms** |
+
+- **Object spread cost ~3.9 ms per use** on the watch and the widget helpers spread every widget's
+  props: all gone, guarded by `tests/watch/noSpread.test.mjs` (CLAUDE.md has the measured JS costs).
+- **Only what's shown is created:** layouts and frame parts on first show (the Today card never makes
+  the big clock, date, battery or complications), rail arc pieces and dots from pools, one `IMG_TIME`
+  on the dim screen. Mock counts (`tests/watch/buildCost.test.mjs`): lit build 124 → 69 widgets,
+  162 → 26 setProperty; dim build 19 → 10 widgets, 24 → 4.
+- **Change-tracked widgets:** a minute tick writes only what changed (lit 85 → 6 calls, dim 13 → 0).
+- **Dim instances** skip what they don't show (heart freshness, battery, steps) and ignore heart events.
+- Fixed: a layout that failed halfway could stay visible next to the next one (`ui/screen.js` show).
+- **Restructured for clarity (owner's request):** one word for lit vs. always-on, *screen* (`'lit'` /
+  `'dim'`, `ui/screen.js`), passed explicitly to every component (no hidden widget level); layouts in
+  `layouts/lit/` and `layouts/dim/`; `alwaysOn*` → `dim*` (files, colours `C.dim*`); the three caches in
+  one place each: `ui/widgets.js` (writes), `ui/lazy.js` (creation), `data/refresh.js` (refresh).
+  Same counts in the build-cost test; the dim screen seen on the watch after the change.
+
+Open: a lit screenshot of each layout with the lazily created parts (the review of the stacking order
+was done in code; the dim screen and the lit clock face were seen on the watch). Measure the lit minute
+tick on the watch (the perf build shows it as `tick … ms` while lit).
+
 ## Known limitations
 
 - New calendar data reaches the watch on its own weather fetch: up to ~30 min (occasionally longer).

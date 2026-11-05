@@ -1,22 +1,22 @@
 // The big digital clock: "21:13" — white digits, lime colon; AM/PM small at the top right.
-// Digits sit in fixed-width slots (ui/clockSlots.js) so the always-on clock, drawn by the system,
+// Digits sit in fixed-width slots (ui/clockSlots.js) so the dim screen's clock, drawn by the system,
 // matches it exactly. Place and size per layout: ui/clockSizes.js.
 import ui from '@zos/ui'
 import { C, F } from '../ui/theme.js'
-import { trackedText, cssTop, lineBox, showAll } from '../ui/widgets.js'
+import { cssTop, lineBox, showAll } from '../ui/widgets.js'
 import { slotLayout, glyphBox } from '../ui/clockSlots.js'
 import { AMPM_SIZE } from '../ui/clockSizes.js'
 
 export const pad = (n) => (n < 10 ? '0' : '') + n
 export const hourText = (hours, is24) => (is24 ? pad(hours) : '' + (hours % 12 === 0 ? 12 : hours % 12))
 
-export function createClock() {
+export function createClock(screen) {
   // Up to 4 digits and the colon, each in its own slot
   const glyphs = [0, 1, 2, 3].map(() =>
-    trackedText({ x: 0, y: 0, w: 10, text_size: 156, font: F.digits, color: C.text, align_h: ui.align.CENTER_H }),
+    screen.text({ x: 0, y: 0, w: 10, text_size: 156, font: F.digits, color: C.text, align_h: ui.align.CENTER_H }),
   )
-  const colon = trackedText({ x: 0, y: 0, w: 10, text_size: 156, font: F.digits, color: C.lime, align_h: ui.align.CENTER_H })
-  const ampm = trackedText({ x: 0, y: 0, w: 60, text_size: AMPM_SIZE, font: F.semibold, color: C.muted, align_h: ui.align.RIGHT })
+  const colon = screen.text({ x: 0, y: 0, w: 10, text_size: 156, font: F.digits, color: C.lime, align_h: ui.align.CENTER_H })
+  const ampm = screen.text({ x: 0, y: 0, w: 60, text_size: AMPM_SIZE, font: F.semibold, color: C.muted, align_h: ui.align.RIGHT })
 
   function render({ now, is24 }, { left, top, size, ampm: place }) {
     const y = cssTop(top, size, 0.9)

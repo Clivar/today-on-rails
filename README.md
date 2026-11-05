@@ -59,8 +59,11 @@ so an old value never looks live.
 **Always-on:** the always-on layouts appear only in the watch's dim always-on state (Display → Always
 On Display; only while the watch is worn), never when the wrist is raised. While dimmed the watch shows
 only the widgets flagged for always-on (every other widget is flagged "lit only"). It rebuilds the face
-on every switch between lit and dim, so a dimmed instance builds only the small always-on set and a lit
-one builds both (`data/refresh.js`); what must survive a rebuild (the last buzz) is kept in storage.
+on every switch between lit and dim, so a dimmed instance builds only the dim screen and a lit one
+both (`data/refresh.js`), each creating only the layout it shows; what must survive a
+rebuild (the last buzz) is kept in storage. Widgets skip writes that change nothing, and the face uses
+no object spread (about 4 ms each on the watch): a wrist raise builds in about 0.45 s, the dim screen
+in about 0.14 s (measured with `tools/build.sh perf`).
 The face refreshes every minute, on wake and on a new heart-rate reading, and skips a refresh when
 nothing it shows has changed. The dim clock is drawn by the system (`IMG_TIME`), and the dim texts use
 fixed times ("NOW · UNTIL 10:30") instead of countdowns. Both clocks use the same fixed-width
@@ -69,23 +72,25 @@ watch wakes up. AM/PM sits at the top right of the clock (the widest 12-hour tim
 the digits).
 
 ```
-watchface/watchface/index.js       entry: builds the widget sets, refreshes every minute and on wake
-watchface/src/layouts/             one file per screen
-  clear.js  next.js  focus.js                  screen on
-  alwaysOnClear.js  alwaysOnNext.js  alwaysOnFocus.js
-  frame.js  alwaysOnFrame.js                   the parts each group shares
-watchface/src/components/          one file per visual block
-  rail  alwaysOnRail  clock  alwaysOnClock  smallClock  date  battery  complications
-  recordButton  freeUntil  nextEvent  alwaysOnLine  todayCard  upNext  buzzer
+watchface/watchface/index.js       entry: wires the screens, the refresh and the buzzer together
+watchface/src/layouts/             one file per layout, per screen
+  lit/   index.js (its layouts)  frame.js (shared parts)  clear.js  next.js  focus.js   wrist raised
+  dim/   index.js  frame.js  clear.js  next.js  focus.js                                 always-on
+watchface/src/components/          one file per visual block; each gets its screen
+  rail  dimRail  clock  dimClock  smallClock  date  battery  complications
+  recordButton  freeUntil  nextEvent  dimLine  todayCard  upNext  buzzer
 watchface/src/data/
   agendaSource.js  where the agenda text comes from (the weather city name; test builds swap this file)
   agenda.js        parse the agenda text, choose the layout, labels, format times
   buzzes.js        which buzz is due this minute (start, 5 minutes left, get ready)
   state.js         sensors + agenda → one state object per refresh
-  refresh.js       which widget sets an instance builds, and when a refresh has work to do
+  refresh.js       which screens an instance builds, and when a refresh has work to do (refresh cache)
   saved.js         small values kept in storage across rebuilds
 watchface/src/ui/
-  theme.js  widgets.js  text.js  railGeometry.js  clockSizes.js  clockSlots.js  metrics.js (generated)
+  screen.js        the two screens, 'lit' and 'dim': each makes its widgets and shows its layouts
+  widgets.js       Widget: skips writes that change nothing (drawing cache)
+  lazy.js          lazy / pool: made when first needed (creation cache)
+  theme.js  text.js  railGeometry.js  clockSizes.js  clockSlots.js  metrics.js (generated)
 ```
 
 ## Phone app

@@ -1,16 +1,16 @@
 // The small clock at the top of the Today card: "5:02". Fixed-width digit slots like the big
-// clock, so the always-on small clock (drawn by the system) matches it.
+// clock, so the dim screen's small clock (drawn by the system) matches it.
 import ui from '@zos/ui'
 import { F } from '../ui/theme.js'
-import { trackedText, cssTop, lineBox, showAll } from '../ui/widgets.js'
+import { cssTop, lineBox, showAll } from '../ui/widgets.js'
 import { slotLayout, glyphBox } from '../ui/clockSlots.js'
 import { SMALL_CLOCK } from '../ui/clockSizes.js'
 import { hourText, pad } from './clock.js'
 
-export function createSmallClock(color) {
+export function createSmallClock(screen, color) {
   const { left, top, size } = SMALL_CLOCK
   const glyphs = [0, 1, 2, 3, 4].map(() =>
-    trackedText({ x: 0, y: cssTop(top, size, 1.2), w: 10, text_size: size, font: F.semibold, color, align_h: ui.align.CENTER_H }),
+    screen.text({ x: 0, y: cssTop(top, size, 1.2), w: 10, text_size: size, font: F.semibold, color, align_h: ui.align.CENTER_H }),
   )
 
   return {

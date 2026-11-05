@@ -11,14 +11,14 @@ export const C = {
   tick: 0x3a3e38,
   lime: 0xb6f35a,
   alert: 0xffb15c,
-  // Always-on
-  aodLime: 0x7fa83f,
-  aodArc: 0x56722a,
-  aodNow: 0x8c918a,
-  aodText: 0x8c918a,
-  aodMuted: 0x767a73,
-  aodAlert: 0xb37c40, // alert dimmed like aodLime is to lime (about 0.7)
-  aodNumeral: 0x5a5e57,
+  // The dim (always-on) screen
+  dimLime: 0x7fa83f,
+  dimArc: 0x56722a,
+  dimNow: 0x8c918a,
+  dimText: 0x8c918a,
+  dimMuted: 0x767a73,
+  dimAlert: 0xb37c40, // alert dimmed like dimLime is to lime (about 0.7)
+  dimNumeral: 0x5a5e57,
 }
 
 // Font files live in assets/bip6/fonts/

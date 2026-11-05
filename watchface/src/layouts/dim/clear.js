@@ -1,14 +1,14 @@
-// Always-on version of "clear": the outlined big clock where the normal one is, the date,
+// The dim screen's "clear": the outlined big clock where the normal one is, the date,
 // and "Free until …" dimmed. (Nothing here counts down: the screen is frozen while dimmed.)
-// Made the first time it's shown, like the screen-on layouts.
-import { C } from '../ui/theme.js'
-import { AVOID } from '../components/rail.js'
-import { createFreeUntil } from '../components/freeUntil.js'
+// Made the first time it's shown, like the lit layouts.
+import { C } from '../../ui/theme.js'
+import { AVOID } from '../../components/rail.js'
+import { createFreeUntil } from '../../components/freeUntil.js'
 
-export function createAlwaysOnClearLayout(frame) {
+export function createDimClearLayout(screen, frame) {
   const date = frame.date()
   const clock = frame.clock()
-  const freeUntil = createFreeUntil(C.aodText)
+  const freeUntil = createFreeUntil(screen, C.dimText)
 
   return {
     render(state) {

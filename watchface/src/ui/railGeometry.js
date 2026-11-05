@@ -21,10 +21,10 @@ export const RING_WIDTH = 3
 export const ARC_WIDTH = 8
 export const MARK = {
   subject: { d: 16, halo: 24 }, // the emphasised event (lime)
-  ring: { d: 16, dim: 14, width: 4, halo: 24 }, // calendar event (dim: without emphasis)
+  ring: { d: 16, plain: 14, width: 4, halo: 24 }, // calendar event (plain: without emphasis)
   dot: { d: 12, halo: 20 }, // reminder
   now: { d: 12, halo: 20 },
-  alwaysOn: { d: 12 }, // the event's dot on the dim screen
+  dim: { d: 12 }, // the event's dot on the dim screen
 }
 
 // ── How the watch draws ARC and STROKE_RECT (measured on the Bip 6, 2026-11-03) ───────────────

@@ -4,7 +4,7 @@
 //   get ready: "GET READY · IN 58 MIN" (an event with a place, earlier than the usual card)
 //   last 5 minutes: "WRAP IT UP · 4 MIN LEFT" in orange, so the switch to what's next doesn't surprise
 import { C, F } from '../ui/theme.js'
-import { trackedText, cssTop, showAll } from '../ui/widgets.js'
+import { cssTop, showAll } from '../ui/widgets.js'
 import { wrapText } from '../ui/text.js'
 import { eventLabel, formatSpan } from '../data/agenda.js'
 
@@ -13,13 +13,14 @@ const TITLE_SIZE = 56
 const TITLE_LINE = TITLE_SIZE * 0.95
 
 // colors: { label, title, time }
-// fixedTimes: "NOW · UNTIL 10:30" / "NEXT · 6:00 PM" instead of countdowns (for the always-on card,
-// so its wrap-up label gets the dim orange)
-export function createTodayCard(colors, { fixedTimes = false } = {}) {
-  const alert = fixedTimes ? C.aodAlert : C.alert
-  const label = trackedText({ x: 40, y: cssTop(TOP, 17, 1.2), w: 330, text_size: 17, font: F.bold, color: colors.label, char_space: 2 })
-  const title = [0, 1].map(() => trackedText({ x: 40, y: 0, w: 330, text_size: TITLE_SIZE, font: F.bold, color: colors.title }))
-  const time = trackedText({ x: 40, y: 0, w: 320, text_size: 30, font: F.medium, color: colors.time })
+// On the dim screen: fixed times instead of countdowns ("NOW · UNTIL 10:30" / "NEXT · 6:00 PM": the
+// dim screen should stay still) and the dim orange for the wrap-up label.
+export function createTodayCard(screen, colors) {
+  const fixedTimes = screen.name === 'dim'
+  const alert = fixedTimes ? C.dimAlert : C.alert
+  const label = screen.text({ x: 40, y: cssTop(TOP, 17, 1.2), w: 330, text_size: 17, font: F.bold, color: colors.label, char_space: 2 })
+  const title = [0, 1].map(() => screen.text({ x: 40, y: 0, w: 330, text_size: TITLE_SIZE, font: F.bold, color: colors.title }))
+  const time = screen.text({ x: 40, y: 0, w: 320, text_size: 30, font: F.medium, color: colors.time })
 
   function render({ subject, is24, ready }) {
     const { text: what, wrapUp } = eventLabel(subject, { is24, ready, fixedTimes })

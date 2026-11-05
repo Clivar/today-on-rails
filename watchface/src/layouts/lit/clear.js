@@ -1,18 +1,18 @@
 // "Clear": nothing coming up soon.
 // Big clock, "Free until …" (today, tomorrow, a weekday or a date), and the full bottom row.
-// Made the first time it's shown (watchface/index.js); new widgets show by themselves, so
+// Made the first time it's shown (layouts/lit/index.js); new widgets show by themselves, so
 // setVisible is only for switching between layouts.
-import { CLOCK } from '../ui/clockSizes.js'
-import { AVOID } from '../components/rail.js'
-import { createFreeUntil } from '../components/freeUntil.js'
+import { CLOCK } from '../../ui/clockSizes.js'
+import { AVOID } from '../../components/rail.js'
+import { createFreeUntil } from '../../components/freeUntil.js'
 
-export function createClearLayout(frame) {
-  // Frame parts in the frame's order (layouts/frame.js), then this layout's own
+export function createClearLayout(screen, frame) {
+  // Frame parts in the frame's order (layouts/lit/frame.js), then this layout's own
   const date = frame.date()
   const battery = frame.battery()
   const clock = frame.clock()
   const complications = frame.complications()
-  const freeUntil = createFreeUntil()
+  const freeUntil = createFreeUntil(screen)
   const parts = [date, battery, clock, freeUntil]
 
   return {

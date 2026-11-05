@@ -5,13 +5,13 @@ import { Time, Battery, HeartRate, Step, TIME_HOUR_FORMAT_24 } from '@zos/sensor
 import { parseAgenda, chooseLayout } from './agenda.js'
 import { readAgendaText } from './agendaSource.js'
 
-// Battery, heart rate and steps show only on the lit screen: their sensors are made with the normal
-// widget set (addScreenOnSensors), so a dimmed instance never makes or reads them.
+// Battery, heart rate and steps show only on the lit screen: their sensors are made with the lit
+// screen (addLitSensors), so a dimmed instance never makes or reads them.
 export function createSensors() {
   return { time: new Time(), battery: null, heart: null, steps: null }
 }
 
-export function addScreenOnSensors(sensors) {
+export function addLitSensors(sensors) {
   sensors.battery = new Battery()
   sensors.heart = new HeartRate()
   sensors.steps = new Step()
@@ -62,7 +62,7 @@ function readHeart(sensor, last, now) {
 }
 
 // The raw readings, cheap to take: data/refresh.js compares them to skip a refresh with nothing new.
-// lit: the screen-on sensors are there (addScreenOnSensors); without them battery, heart and steps stay 0.
+// lit: the lit screen's sensors are there (addLitSensors); without them battery, heart and steps stay 0.
 export function readInputs(sensors) {
   const now = readNow(sensors.time)
   const inputs = { now, is24: is24h(sensors.time), lit: !!sensors.heart, battery: 0, heartLast: 0, steps: 0, cityName: '' }

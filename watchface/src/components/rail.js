@@ -6,12 +6,12 @@
 //   inner ring — hour ticks, numerals 12 / 3 / 9, and the event's time label (replacing a numeral
 //                it would cover; left out if it would cover content).
 // Made of system widgets, not a canvas: they're drawn smooth (antialiased), and the minute refresh
-// only moves the few that changed (tracked widgets, ui/widgets.js). The always-on rail is
-// components/alwaysOnRail.js (a flagged canvas can't draw while dimmed).
+// only moves the few that changed (widgets skip unchanged writes, ui/widgets.js). The dim screen's
+// rail is components/dimRail.js (a canvas flagged for the dim screen can't draw).
 //
 // Widgets stack in creation order, bottom to top: base ring, ticks, numerals (created with the rail),
-// then the elapsed arc, the lime arc, the dots and the label. Those four layers are pools created on
-// demand, with their first props, by the first render (part of the build), in that order: a face
+// then the elapsed arc, the lime arc, the dots and the label. Those four layers are pools (ui/lazy.js)
+// made on demand, with their first props, by the first render (part of the build), in that order: a face
 // that shows no arc creates no arc widgets. A layer that has to grow later would put its new widgets
 // on top of the layers above it, so these start over above it: their widgets are hidden and new ones
 // created (see stack). That's rare: the face is rebuilt on every wake, so a pool only grows when a
@@ -21,7 +21,8 @@
 import ui from '@zos/ui'
 
 import { C, F } from '../ui/theme.js'
-import { widget, trackedWidget, trackedText, colored, withWidgetLevel } from '../ui/widgets.js'
+import { colored } from '../ui/widgets.js'
+import { pool } from '../ui/lazy.js'
 import { textWidth } from '../ui/text.js'
 import {
   railPoint, railPieces, arcShapes, discBox, ringProps, tickBox, arcInWindow, labelSpot, hoursApart,
@@ -42,14 +43,14 @@ const NONE = []
 
 // The rail's per-minute work runs on the watch's slow JS: indexed loops, no for…of, callbacks or
 // destructuring per mark (each costs about 0.1–0.2 ms there; tools/build.sh perf).
-export function createRail() {
-  widget(ui.widget.STROKE_RECT, colored(ringProps(OUTER, RING_WIDTH), C.line))
-  const ticks = TICK_HOURS.map((h) => trackedWidget(ui.widget.FILL_RECT, colored(tickBox(h), C.tick)))
-  const numerals = NUMERALS.map((n) => numeral(n[0], n[1], C.numeral))
-  const elapsed = arcLayer(ELAPSED)
-  const lime = arcLayer(C.lime)
-  const marks = pool('normal', createMark)
-  const label = pool('normal', timeLabel)
+export function createRail(screen) {
+  screen.widget(ui.widget.STROKE_RECT, colored(ringProps(OUTER, RING_WIDTH), C.line))
+  const ticks = TICK_HOURS.map((h) => screen.widget(ui.widget.FILL_RECT, colored(tickBox(h), C.tick)))
+  const numerals = NUMERALS.map((n) => numeral(screen, n[0], n[1], C.numeral))
+  const elapsed = arcLayer(screen, ELAPSED)
+  const lime = arcLayer(screen, C.lime)
+  const marks = pool(markMaker(screen))
+  const label = pool(timeLabel(screen))
 
   // state:    { now, is24, agenda, subject }
   // emphasis: lime arc and dot for the subject
@@ -87,40 +88,19 @@ export function createRail() {
   return { render }
 }
 
-// ── Pools: widgets created when first needed ─────────────────────────────────────────────────────
-
-// A pool of like widgets at a level ('normal' | 'alwaysOn'): create(item) makes one, already showing
-// item, and returns its draw(item), which shows it with item's props or hides it when item is null.
-// → draw(items, restack): one widget per item, the rest hidden, more created when needed. restack:
-// hide them all and start over (on top of what was created since). Returns whether it created any.
-export function pool(level, create) {
-  let units = []
-  const grow = (items) => () => {
-    for (let i = units.length; i < items.length; i++) units.push(create(items[i]))
-  }
-  return (items, restack) => {
-    if (restack) {
-      for (let i = 0; i < units.length; i++) units[i](null)
-      units = []
-    }
-    for (let i = 0; i < units.length; i++) units[i](i < items.length ? items[i] : null)
-    if (items.length <= units.length) return false
-    withWidgetLevel(level, grow(items)) // created while drawing, outside the set's own level
-    return true
-  }
-}
+// ── The layers' widgets ─────────────────────────────────────────────────────────────────────────
 
 // A pool's widget: a shape of one colour, created with its first props (no extra call to place it)
-export function piece(type, props, color) {
-  const w = trackedWidget(type, colored(props, color))
+export function piece(screen, type, props, color) {
+  const w = screen.widget(type, colored(props, color))
   return (next) => (next ? w.place(next) : w.show(false))
 }
 
 // An arc on the outer ring, as a layer: straight runs and round caps (FILL_RECTs), corners (ARCs).
 // All one colour, so the two pools' order doesn't matter. draw(pieces, restack) like a pool's.
-function arcLayer(color) {
-  const rects = pool('normal', (box) => piece(ui.widget.FILL_RECT, box, color))
-  const corners = pool('normal', (props) => piece(ui.widget.ARC, props, color))
+function arcLayer(screen, color) {
+  const rects = pool((box) => piece(screen, ui.widget.FILL_RECT, box, color))
+  const corners = pool((props) => piece(screen, ui.widget.ARC, props, color))
   return (pieces, restack) => {
     const shapes = arcShapes(pieces, ARC_WIDTH)
     const grewRects = rects(shapes.rects, restack)
@@ -128,14 +108,16 @@ function arcLayer(color) {
   }
 }
 
-// The event's time label; props from labelProps (the rest filled in here)
-export function timeLabel(props) {
-  props.text_size = 16
-  props.font = F.bold
-  props.align_h = ui.align.CENTER_H
-  props.align_v = ui.align.CENTER_V
-  const w = trackedText(props)
-  return (next) => (next ? w.place(next) : w.show(false))
+// Makes the event's time label (a pool's widget); props from labelProps (the rest filled in here)
+export function timeLabel(screen) {
+  return (props) => {
+    props.text_size = 16
+    props.font = F.bold
+    props.align_h = ui.align.CENTER_H
+    props.align_v = ui.align.CENTER_V
+    const w = screen.text(props)
+    return (next) => (next ? w.place(next) : w.show(false))
+  }
 }
 
 // Where the label goes (spot from labelSpot) and what it says
@@ -143,10 +125,10 @@ export function labelProps(spot, s, color) {
   return { x: Math.round(spot.x - 40), y: Math.round(spot.y - 10), w: 80, h: 20, text: s, color }
 }
 
-// A numeral (12 / 3 / 9) on the inner ring, tracked; also used by the always-on rail
-export function numeral(h, s, color) {
+// A numeral (12 / 3 / 9) on the inner ring; also used by the dim rail
+export function numeral(screen, h, s, color) {
   const p = railPoint(h, INNER)
-  return trackedText({
+  return screen.text({
     x: Math.round(p[0] - 20), y: Math.round(p[1] - 10), w: 40, h: 20, text: s, text_size: 15, font: F.bold,
     color, align_h: ui.align.CENTER_H, align_v: ui.align.CENTER_V,
   })
@@ -155,7 +137,7 @@ export function numeral(h, s, color) {
 // A mark at rail hour h: centre (x, y), diameter d, black halo, colour, and a black hole for a ring
 function itemMark(it, h, emphasis) {
   if (it.kind === 'calendar') {
-    const d = emphasis ? MARK.ring.d : MARK.ring.dim
+    const d = emphasis ? MARK.ring.d : MARK.ring.plain
     const m = mark(h, MARK.ring, emphasis ? C.text : C.muted)
     m.d = d
     m.hole = d - 2 * MARK.ring.width
@@ -170,12 +152,12 @@ function mark(h, size, color) {
   return { x: p[0], y: p[1], d: size.d, halo: size.halo, hole: 0, color }
 }
 
-// A dot on the outer ring: black halo, the dot, and a black hole when it's a ring (always made, so a
-// later ring in this pool's place keeps its hole under the marks above it)
-function createMark(m) {
-  const halo = trackedWidget(ui.widget.FILL_RECT, colored(discBox(m.x, m.y, m.halo), C.bg))
-  const disc = trackedWidget(ui.widget.FILL_RECT, colored(discBox(m.x, m.y, m.d), m.color))
-  const hole = trackedWidget(ui.widget.FILL_RECT, colored(discBox(m.x, m.y, m.hole || 2), C.bg))
+// Makes a dot on the outer ring (a pool's widget): black halo, the dot, and a black hole when it's a
+// ring (always made, so a later ring in this pool's place keeps its hole under the marks above it)
+const markMaker = (screen) => (m) => {
+  const halo = screen.widget(ui.widget.FILL_RECT, colored(discBox(m.x, m.y, m.halo), C.bg))
+  const disc = screen.widget(ui.widget.FILL_RECT, colored(discBox(m.x, m.y, m.d), m.color))
+  const hole = screen.widget(ui.widget.FILL_RECT, colored(discBox(m.x, m.y, m.hole || 2), C.bg))
   if (!m.hole) hole.show(false)
 
   return (next) => {

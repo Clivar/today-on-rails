@@ -1,27 +1,37 @@
-// A face instance builds only the widgets its scene shows, and skips refreshes with nothing new
+// A face instance builds only the screens the watch can show, and skips refreshes with nothing new
 // (the watch rebuilds the face on every lit ↔ dim switch; building and drawing everything made it lag).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { setsForScene, refreshKey } from '../../watchface/src/data/refresh.js'
+import { screenFromScene, screensToBuild, refreshKey, createRedrawCheck } from '../../watchface/src/data/refresh.js'
 
 // @zos/app's SCENE_AOD; on the Bip 6 getScene() gave 3 while dimmed, 1 while lit
 const SCENE_AOD = 3
 
-test('a dimmed instance builds only the always-on set', () => {
-  assert.deepEqual(setsForScene(3, SCENE_AOD), { normal: false, alwaysOn: true })
+test('the screen the watch shows: dim for the always-on scene, lit otherwise', () => {
+  assert.equal(screenFromScene(3, SCENE_AOD), 'dim')
+  assert.equal(screenFromScene(1, SCENE_AOD), 'lit')
 })
 
-test('a lit instance builds both sets: the dim screen never goes black before the rebuild', () => {
-  assert.deepEqual(setsForScene(1, SCENE_AOD), { normal: true, alwaysOn: true })
+test('an unknown scene or a missing constant: unknown screen', () => {
+  for (const scene of [undefined, null, 'x', '3']) assert.equal(screenFromScene(scene, SCENE_AOD), null, String(scene))
+  // SCENE_AOD missing on another firmware: never "dimmed"
+  assert.equal(screenFromScene(3, undefined), null)
 })
 
-test('an unknown scene or a missing constant builds both sets', () => {
-  for (const scene of [undefined, null, 0, 2, 4, 'x', '3']) {
-    assert.deepEqual(setsForScene(scene, SCENE_AOD), { normal: true, alwaysOn: true }, String(scene))
-  }
-  // SCENE_AOD missing on another firmware, getScene() throwing (undefined): never "dimmed"
-  assert.deepEqual(setsForScene(3, undefined), { normal: true, alwaysOn: true })
-  assert.deepEqual(setsForScene(undefined, undefined), { normal: true, alwaysOn: true })
+test('a dimmed instance builds only the dim screen; any other builds both', () => {
+  assert.deepEqual(screensToBuild('dim'), ['dim'])
+  // lit: the dim screen too, so the always-on display never goes black before the rebuild
+  assert.deepEqual(screensToBuild('lit'), ['lit', 'dim'])
+  assert.deepEqual(screensToBuild(null), ['lit', 'dim'])
+})
+
+test('the redraw check: the same key again is skipped until forgotten', () => {
+  const check = createRedrawCheck()
+  assert.equal(check.same('a'), false)
+  assert.equal(check.same('a'), true)
+  assert.equal(check.same('b'), false)
+  check.forget()
+  assert.equal(check.same('b'), false)
 })
 
 // A lit instance's readings (data/state.js readInputs); a dimmed one reads no battery, heart or steps

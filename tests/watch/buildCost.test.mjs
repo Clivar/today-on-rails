@@ -77,11 +77,11 @@ test('the perf agenda: the Today card for an ongoing event, at any time of day',
   }
 })
 
-// Budgets: today's count (2026-11-03, layouts and frame parts made on first show) plus a few calls
-// of room. Lower them when the face gets cheaper.
+// Budgets: today's count (2026-11-04: layouts and frame parts made on first show, every widget
+// change-tracked) plus a few calls of room. Lower them when the face gets cheaper.
 const BUDGET = {
-  lit: { widgets: 69 + 3, set: 39 + 4, sensor: 21 + 2, tickSet: 38 + 4 },
-  dim: { widgets: 10 + 1, set: 5 + 2, sensor: 13 + 1, tickSet: 5 + 2 },
+  lit: { widgets: 69 + 3, set: 26 + 4, sensor: 21 + 2, tickSet: 6 + 4 },
+  dim: { widgets: 10 + 1, set: 4 + 2, sensor: 13 + 1, tickSet: 0 + 2 },
   readInputs: 13 + 1, // sensor/app calls of a refresh with nothing new (a wake): it only reads
   readInputsDim: 10 + 1, // the same while dimmed: no battery, heart or steps
 }
