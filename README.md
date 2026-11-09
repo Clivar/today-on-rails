@@ -53,7 +53,7 @@ closer. The record button opens the watch's Voice Memo app.
 
 **Heart rate** uses the watch's own background readings (their interval is set in Gadgetbridge → Heart
 rate monitoring), so the face adds no sensor use. A new reading shows immediately (`onLastChange`);
-when the last one is more than 10 minutes old, the face shows your resting heart rate in grey instead,
+when the last one is more than 10 minutes old, the face shows your resting heart rate in grey instead, with a calm pulse and "zz",
 so an old value never looks live.
 
 **Always-on:** the always-on layouts appear only in the watch's dim always-on state (Display → Always
@@ -151,15 +151,18 @@ android/app/src/main/java/app/todayonrails/
 ## Agenda text format
 
 ```
-Brussels · 31/10 · cfg next=360 focus=15 during=1 ready=60 rail=180 buzz=start+end · C09:00-10:30 Team call · R18:00 Water the plants · 1/11 · C@14:00-15:00 Dentist
+Brussels · 31/10 · cfg next=360 focus=15 during=1 ready=60 rail=180 buzz=start+end sent=31/10T07:42 · C09:00-10:30 Team call · R18:00 Water the plants · 1/11 · C@14:00-15:00 Dentist
 ```
 
 - Parts are separated by ` · `. The first is the city (the watch's weather app shows the whole text).
 - `D/M` sets the day for the items after it; the one right after the city is required.
-- `cfg next=<min> focus=<min> during=<0|1> ready=<min> rail=<min> buzz=<start+end+ready|none>`: the
-  settings, in this order (missing → 360 / 0 / 1 / 0 / 60 / none); `ready` is the "get ready" Today card
-  for events with a place, `rail` how close an event must be for the lime arc (the phone's *Green rail*),
-  `buzz` the moments the watch vibrates.
+- `cfg next=<min> focus=<min> during=<0|1> ready=<min> rail=<min> buzz=<start+end+ready|none> sent=<D/M>T<HH:MM>`:
+  the settings, in this order (missing → 360 / 30 / 1 / 0 / 180 / none); `ready` is the "get ready" Today
+  card for events with a place, `rail` how close an event must be for the lime arc (the phone's *Green
+  rail*), `buzz` the moments the watch vibrates, `sent` when the phone sent the text. The phone resends at
+  least every 6 h; when `sent` is over 8 h old the face shows "No update since Sat 18:08" in orange instead
+  of "Nothing planned" / "Nothing else today" / the Today card's list (the phone or Gadgetbridge has
+  stopped; what the face shows may be wrong). No `sent`: never shown.
 - Items: `R` reminder (a moment) or `C` calendar event with an optional end time (`C@` = it has a place), 24-hour times, then the
   title (never containing ` · `). A time earlier than the previous one is on the next day; an end
   earlier than its start is after midnight.

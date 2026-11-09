@@ -128,3 +128,31 @@ test('a reminder just past is only kept for the buzzer, never shown', () => {
   // a moment right now is still an item
   assert.ok(at(9, 30, 31, s).agenda.items.some((i) => i.title === 'Stretch'))
 })
+
+// "No update since …": the phone sends the time with the agenda (cfg sent=); when it's older than
+// STALE_MIN the phone or Gadgetbridge has stopped, and the face says so instead of "Nothing planned".
+test('stale agenda: a notice once the last update is older than STALE_MIN', async () => {
+  const { staleNotice, STALE_MIN } = await import('../../watchface/src/data/agenda.js')
+  const now = { year: 2026, month: 11, day: 9, hours: 19, minutes: 30, weekDay: 1 }
+  const text = (sent) => `Brussels · 9/11 · cfg next=360 focus=30 rail=180 buzz=start${sent} · C21:00-22:00 Call`
+  const notice = (sent, is24 = true) => staleNotice(parseAgenda(text(sent), now), now, is24)
+  assert.equal(STALE_MIN, 8 * 60)
+  assert.equal(notice(' sent=9/11T19:14'), null) // fresh
+  assert.equal(notice(' sent=9/11T11:31'), null) // 7 h 59 min: the phone resends every 6 h at least
+  assert.equal(notice(' sent=9/11T11:30'), 'No update since 11:30') // the same day: just the time
+  assert.equal(notice(' sent=7/11T18:08'), 'No update since Sat 18:08')
+  assert.equal(notice(' sent=7/11T18:08', false), 'No update since Sat 6:08 PM')
+  assert.equal(notice(''), null) // an older phone app that doesn't send the time: never stale
+  assert.equal(notice(' sent=9/11T20:00'), null) // "sent" after now (clocks apart): not stale
+  // Sent on 31/12, read on 2/1: last year's date, not this year's
+  const jan = { year: 2027, month: 1, day: 2, hours: 9, minutes: 0, weekDay: 6 }
+  const old = parseAgenda('X · 31/12 · cfg next=360 sent=31/12T20:00 · R10:00 A', jan)
+  assert.equal(staleNotice(old, jan, true), 'No update since Thu 20:00')
+})
+
+test('the longest stale notice fits every line that shows it', async () => {
+  const { textWidth } = await import('../../watchface/src/ui/text.js')
+  const longest = 'No update since Wed 12:58 PM'
+  assert.ok(textWidth(longest, 'medium', 20) <= 290, 'clear: Free until line') // freeUntil.js MAX_W
+  assert.ok(textWidth(longest, 'medium', 18) <= 246, 'next: the line under the title; Today card list')
+})

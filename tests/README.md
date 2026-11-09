@@ -18,6 +18,7 @@ npm run test:all     # everything: the above, the phone app's unit tests and And
 | `watch/testBuilds.test.mjs` | the test builds' agendas (`tools/test-builds/`): each parses and shows the intended layouts and buzzes at the intended minutes |
 | `watch/buildCost.test.mjs` | loads the real face with mocked `@zos` (`watch/zosMock.mjs`, via Node module hooks) and counts widgets, setProperty and sensor calls for a lit and a dim build, a wake and a minute tick, against budgets (so a build can't silently get heavier); a wake with nothing new does no drawing; the `perf` test build's rewrites still match `index.js` |
 | `watch/widgets.test.mjs` | a widget's write that changes nothing never reaches the watch; every widget shows only on its screen |
+| `watch/stale.test.mjs` | the real face with an agenda whose last update is days old shows "No update since …" in orange on every layout |
 | `watch/noSpread.test.mjs` | no object spread in `watchface/` (3.9 ms per use on the watch) |
 | `watch/clock.test.mjs` | the clock's digit boxes are wider than every glyph and centred on their slots (otherwise a digit slides sideways on the watch), and the widest time fits the screen |
 | `android/app/src/test/.../agenda/AgendaTextTest.kt` | the phone's text builder: title cleaning, the 400-character cap, buzz and rail settings |

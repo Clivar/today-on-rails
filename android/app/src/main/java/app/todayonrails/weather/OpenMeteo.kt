@@ -11,8 +11,11 @@ import kotlin.math.roundToInt
 // (offline, or the Network permission revoked on GrapheneOS).
 object OpenMeteo {
 
+    // Every temperature comes twice: the air temperature and how warm it feels (Open-Meteo's apparent
+    // temperature: wind, humidity and sun included). feelsLike() picks the second (Settings.feelsLike).
     data class Forecast(
         val tempC: Double,
+        val feelsC: Double,
         val humidity: Int,
         val windKmh: Double,
         val windDirection: Int,
@@ -21,15 +24,26 @@ object OpenMeteo {
         val hours: List<Hour>,
     )
 
-    data class Day(val minC: Double, val maxC: Double, val code: Int, val sunrise: Long, val sunset: Long, val rainChance: Int)
-    data class Hour(val time: Long, val tempC: Double, val code: Int)
+    data class Day(
+        val minC: Double, val maxC: Double, val code: Int, val sunrise: Long, val sunset: Long, val rainChance: Int,
+        val feelsMinC: Double = minC, val feelsMaxC: Double = maxC,
+    )
+    data class Hour(val time: Long, val tempC: Double, val code: Int, val feelsC: Double = tempC)
+
+    // The same forecast with the feels-like temperatures in place of the air temperatures
+    fun feelsLike(f: Forecast) = f.copy(
+        tempC = f.feelsC,
+        days = f.days.map { it.copy(minC = it.feelsMinC, maxC = it.feelsMaxC) },
+        hours = f.hours.map { it.copy(tempC = it.feelsC) },
+    )
 
     fun fetch(latitude: Double, longitude: Double): Forecast? = try {
         val url = URL(
             "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude" +
-                "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m" +
-                "&hourly=temperature_2m,weather_code" +
-                "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max" +
+                "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m" +
+                "&hourly=temperature_2m,apparent_temperature,weather_code" +
+                "&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min," +
+                "sunrise,sunset,precipitation_probability_max" +
                 "&timezone=auto&timeformat=unixtime&forecast_days=7",
         )
         val conn = (url.openConnection() as HttpURLConnection).apply {
@@ -46,7 +60,7 @@ object OpenMeteo {
         null
     }
 
-    private fun parse(json: JSONObject): Forecast {
+    internal fun parse(json: JSONObject): Forecast {
         val current = json.getJSONObject("current")
         val daily = json.getJSONObject("daily")
         val hourly = json.getJSONObject("hourly")
@@ -60,16 +74,22 @@ object OpenMeteo {
                 sunrise = daily.getJSONArray("sunrise").getLong(i),
                 sunset = daily.getJSONArray("sunset").getLong(i),
                 rainChance = daily.getJSONArray("precipitation_probability_max").optInt(i, 0),
+                feelsMinC = daily.getJSONArray("apparent_temperature_min").getDouble(i),
+                feelsMaxC = daily.getJSONArray("apparent_temperature_max").getDouble(i),
             )
         }
         val times = hourly.getJSONArray("time")
         val hours = (0 until times.length())
             .filter { times.getLong(it) >= now - 3600 }
             .take(24)
-            .map { Hour(times.getLong(it), hourly.getJSONArray("temperature_2m").getDouble(it), hourly.getJSONArray("weather_code").getInt(it)) }
+            .map {
+                Hour(times.getLong(it), hourly.getJSONArray("temperature_2m").getDouble(it), hourly.getJSONArray("weather_code").getInt(it),
+                    feelsC = hourly.getJSONArray("apparent_temperature").getDouble(it))
+            }
 
         return Forecast(
             tempC = current.getDouble("temperature_2m"),
+            feelsC = current.getDouble("apparent_temperature"),
             humidity = current.getInt("relative_humidity_2m"),
             windKmh = current.getDouble("wind_speed_10m"),
             windDirection = current.getInt("wind_direction_10m"),
@@ -122,21 +142,22 @@ object OpenMeteo {
 
     // Keep the raw forecast as JSON so the last one can be reused when offline
     fun toJson(f: Forecast): String = JSONObject()
-        .put("tempC", f.tempC).put("humidity", f.humidity).put("windKmh", f.windKmh)
+        .put("tempC", f.tempC).put("feelsC", f.feelsC).put("humidity", f.humidity).put("windKmh", f.windKmh)
         .put("windDirection", f.windDirection).put("code", f.code)
-        .put("days", JSONArray(f.days.map { JSONObject().put("minC", it.minC).put("maxC", it.maxC).put("code", it.code).put("sunrise", it.sunrise).put("sunset", it.sunset).put("rainChance", it.rainChance) }))
-        .put("hours", JSONArray(f.hours.map { JSONObject().put("time", it.time).put("tempC", it.tempC).put("code", it.code) }))
+        .put("days", JSONArray(f.days.map { JSONObject().put("minC", it.minC).put("maxC", it.maxC).put("code", it.code).put("sunrise", it.sunrise).put("sunset", it.sunset).put("rainChance", it.rainChance).put("feelsMinC", it.feelsMinC).put("feelsMaxC", it.feelsMaxC) }))
+        .put("hours", JSONArray(f.hours.map { JSONObject().put("time", it.time).put("tempC", it.tempC).put("code", it.code).put("feelsC", it.feelsC) }))
         .toString()
 
+    // A forecast cached before the feels-like values existed reads them as the air temperature
     fun fromJson(s: String): Forecast? = try {
         val j = JSONObject(s)
         val days = j.getJSONArray("days")
         val hours = j.getJSONArray("hours")
         Forecast(
-            tempC = j.getDouble("tempC"), humidity = j.getInt("humidity"), windKmh = j.getDouble("windKmh"),
+            tempC = j.getDouble("tempC"), feelsC = j.optDouble("feelsC", j.getDouble("tempC")), humidity = j.getInt("humidity"), windKmh = j.getDouble("windKmh"),
             windDirection = j.getInt("windDirection"), code = j.getInt("code"),
-            days = (0 until days.length()).map { days.getJSONObject(it) }.map { Day(it.getDouble("minC"), it.getDouble("maxC"), it.getInt("code"), it.getLong("sunrise"), it.getLong("sunset"), it.getInt("rainChance")) },
-            hours = (0 until hours.length()).map { hours.getJSONObject(it) }.map { Hour(it.getLong("time"), it.getDouble("tempC"), it.getInt("code")) },
+            days = (0 until days.length()).map { days.getJSONObject(it) }.map { Day(it.getDouble("minC"), it.getDouble("maxC"), it.getInt("code"), it.getLong("sunrise"), it.getLong("sunset"), it.getInt("rainChance"), it.optDouble("feelsMinC", it.getDouble("minC")), it.optDouble("feelsMaxC", it.getDouble("maxC"))) },
+            hours = (0 until hours.length()).map { hours.getJSONObject(it) }.map { Hour(it.getLong("time"), it.getDouble("tempC"), it.getInt("code"), it.optDouble("feelsC", it.getDouble("tempC"))) },
         )
     } catch (e: Exception) {
         null

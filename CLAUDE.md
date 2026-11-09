@@ -131,6 +131,14 @@ base ring. Measure such things on the raw BMP (`/tmp/gbphone/*.bmp`), not by eye
 - Weather broadcast message size: 850 characters ACKed, 1000 not; 200 verified shown on the face. The app
   keeps it under 400.
 - Only one app should send weather; the last one wins (WeatherSpec isn't merged).
+- **After a Gadgetbridge update (or reboot) it reconnects to the watch only if "Connect to Gadgetbridge
+  device when Bluetooth is turned on" (`general_autoconnectonbluetooth`) is on** — "Start automatically"
+  alone starts it without connecting (`AutoStartReceiver`, `MY_PACKAGE_REPLACED`). On 2026-11-07 the
+  F-Droid update to 2026.11.0 left the watch "Not connected" for two days: old agenda, missing events,
+  weather gone. The owner's phone now has both on. The face shows "No update since …" when that happens
+  (`cfg sent=`, data/agenda.js `staleNotice`).
+- The app's default weather coordinates are central Brussels (50.85, 4.35): a temperature a few degrees
+  off usually means the location in the app's Weather section isn't the owner's.
 - File installs: `.zab` via the exported `FileInstallerActivity` (`file://` URI in Gadgetbridge's files dir).
   Installing a watchface makes it the active one.
 - App Manager (experimental "App management" setting): **don't use "Start" on Zepp OS apps** — it returned

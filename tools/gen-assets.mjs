@@ -58,13 +58,18 @@ const svg = (size, stroke, width, body) =>
 
 const ICONS = {
   weather: '<circle cx="9" cy="9" r="3.5"/><path d="M9 2.5v1.5M3.5 9H2M4.4 4.4l1 1M13.6 4.4l-1 1"/><path d="M8 20h9a4 4 0 0 0 0-8 5 5 0 0 0-9.6 1.5A3.3 3.3 0 0 0 8 20z"/>',
-  heart: '<path d="M3 12h4l2.5-6 4 12 2.5-6h5"/>',
+  heart: '<path d="M3 12h4l2.5-6 4 12 2.5-6h5"/>', // a pulse: a live reading
+  // A calm pulse (flat, one small bump) with zz: the resting heart rate (no reading in the last 10
+  // minutes) — the live pulse above, at rest. The z's are a little thinner so they stay letters at 21 px.
+  heartRest: '<path d="M2 16h6l1.5-3 1.5 3h11"/>' +
+    '<path stroke-width="1.7" d="M13 4h4l-4 4.5h4"/><path stroke-width="1.5" d="M18.5 1.5h3L18.5 5h3"/>',
   steps: '<ellipse cx="8" cy="8.5" rx="3" ry="4.5"/><ellipse cx="16" cy="13.5" rx="3" ry="4.5"/><path d="M6.5 16.5h3M14.5 21.5h3"/>',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/>',
 }
 for (const [name, icon, size] of [
   ['weather-21', 'weather', 21], ['weather-22', 'weather', 22],
   ['heart-21', 'heart', 21], ['heart-22', 'heart', 22], ['steps-21', 'steps', 21],
+  ['heart-rest-21', 'heartRest', 21], ['heart-rest-22', 'heartRest', 22],
 ]) shoot(name, size, size, svg(size, MUTED, 2, ICONS[icon]))
 
 // Record button: lime circle with the mic, plus a pressed state

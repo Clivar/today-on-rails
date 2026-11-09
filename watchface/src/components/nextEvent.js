@@ -5,7 +5,7 @@
 import { C, F } from '../ui/theme.js'
 import { cssTop, showAll } from '../ui/widgets.js'
 import { fitText } from '../ui/text.js'
-import { eventLabel, formatTime, moreSameDay } from '../data/agenda.js'
+import { eventLabel, formatTime, moreSameDay, staleNotice } from '../data/agenda.js'
 
 export function createNextEvent(screen) {
   const when = screen.text({ x: 40, y: cssTop(238, 16, 1.2), w: 330, text_size: 16, font: F.bold, color: C.lime, char_space: 2 })
@@ -13,13 +13,16 @@ export function createNextEvent(screen) {
   const more = screen.text({ x: 40, y: cssTop(306, 18, 1.2), w: 250, text_size: 18, font: F.medium, color: C.muted })
 
   return {
-    render({ subject, agenda, is24 }) {
+    render({ subject, agenda, is24, now }) {
       const head = eventLabel(subject, { is24, timeFirst: true })
       when.set({ text: head.text, color: head.wrapUp ? C.alert : C.lime })
       title.setText(fitText(subject.title, 'bold', 34, 310))
       const n = moreSameDay(agenda, subject)
       const rest = n ? `+${n} more ${subject.daysAhead === 0 ? 'today' : 'that day'}` : 'Nothing else today'
-      more.setText(subject.ongoing ? `Until ${formatTime(subject.endHours, subject.endMinutes, is24)} · ${rest}` : rest)
+      // The phone's updates have stopped: say so instead of "Nothing else today" (could be wrong then)
+      const stale = staleNotice(agenda, now, is24)
+      if (stale) return more.set({ text: stale, color: C.alert })
+      more.set({ text: subject.ongoing ? `Until ${formatTime(subject.endHours, subject.endMinutes, is24)} · ${rest}` : rest, color: C.muted })
     },
     setVisible: (on) => showAll([when, title, more], on),
   }

@@ -1,9 +1,11 @@
-// The Today card's list: the next two items after the event shown ("● 7:30 Walk the dog").
+// The Today card's list: the next two items after the event shown ("● 7:30 Walk the dog"); when the
+// phone's updates have stopped, "No update since Sat 18:08" in orange instead (the list could be wrong).
 import ui from '@zos/ui'
 import { C, F } from '../ui/theme.js'
 import { cssTop, showAll } from '../ui/widgets.js'
 import { textWidth, fitText } from '../ui/text.js'
-import { formatTime, itemsAfter } from '../data/agenda.js'
+import { lazy } from '../ui/lazy.js'
+import { formatTime, itemsAfter, staleNotice } from '../data/agenda.js'
 
 const TOP = 332
 const ROW = 21 * 1.2 + 10
@@ -21,8 +23,19 @@ export function createUpNext(screen) {
     }
   })
 
-  function render({ agenda, subject, is24 }) {
-    const items = itemsAfter(agenda, subject, 2)
+  // Made the first time it's needed (rarely: only when updates stop)
+  const notice = lazy(() => screen.text({ x: 40, y: cssTop(TOP, 18, 1.2), w: RIGHT - 40, text_size: 18, font: F.medium, color: C.alert }))
+  let noticeMade = false
+
+  function render({ agenda, subject, is24, now }) {
+    const stale = staleNotice(agenda, now, is24)
+    if (stale) {
+      notice().place({ text: stale })
+      noticeMade = true
+    } else if (noticeMade) {
+      notice().show(false)
+    }
+    const items = stale ? [] : itemsAfter(agenda, subject, 2)
     // Time column: 44 px in the design (12-hour "7:30"); wider for 24-hour "09:00"
     const times = []
     let timeW = 44
@@ -49,5 +62,11 @@ export function createUpNext(screen) {
 
   const all = []
   for (let i = 0; i < rows.length; i++) all.push(rows[i].dot, rows[i].ring, rows[i].hole, rows[i].time, rows[i].title)
-  return { render, setVisible: (on) => showAll(all, on) }
+  return {
+    render,
+    setVisible: (on) => {
+      showAll(all, on)
+      if (noticeMade && !on) notice().show(false) // shown again by the next render, if still stale
+    },
+  }
 }

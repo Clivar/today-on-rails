@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { parseAgenda } from '../../watchface/src/data/agenda.js'
+import { parseAgenda, minuteOf } from '../../watchface/src/data/agenda.js'
 
 const { cases } = JSON.parse(fs.readFileSync(new URL('./cases.json', import.meta.url), 'utf8'))
 const pad = (n) => (n < 10 ? '0' : '') + n
@@ -19,6 +19,9 @@ for (const c of cases) {
 
     assert.equal(agenda.valid, true)
     assert.equal(agenda.weather, c.watchSees.weather)
+    // When the phone sent it (cfg sent=), as minutes before watchNow; null when the text doesn't say
+    const sentAgo = agenda.sentMinute === null ? null : minuteOf({ year, month, day, hours, minutes }) - agenda.sentMinute
+    assert.equal(sentAgo, c.watchSees.sentMinutesAgo ?? null)
     assert.deepEqual(agenda.settings, c.watchSees.settings)
     assert.deepEqual(
       agenda.items.map((it) => ({

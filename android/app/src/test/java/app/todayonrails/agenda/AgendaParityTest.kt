@@ -33,7 +33,8 @@ class AgendaParityTest {
                 Event(LocalDateTime.parse(it.getString("start")), LocalDateTime.parse(it.getString("end")),
                     it.getString("title"), it.optString("place").ifEmpty { null })
             }
-            val text = AgendaText.build(c.getString("city"), LocalDate.parse(c.getString("today")), events, settings, c.getBoolean("weather"))
+            val sentAt = c.optString("sentAt").ifEmpty { null }?.let { LocalDateTime.parse(it) }
+            val text = AgendaText.build(c.getString("city"), LocalDate.parse(c.getString("today")), events, settings, c.getBoolean("weather"), sentAt)
             assertEquals(c.getString("name"), c.getString("text"), text)
         }
     }

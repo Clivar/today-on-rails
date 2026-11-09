@@ -7,9 +7,10 @@ import app.todayonrails.R
 import app.todayonrails.settings.Settings
 import java.util.Locale
 
-// Forecast on/off, the city name and the coordinates for the forecast.
+// Forecast on/off, feels-like or air temperature, the city name and the coordinates for the forecast.
 class WeatherSection(activity: Activity, private val settings: Settings, private val onChanged: () -> Unit) {
     private val enabled = activity.findViewById<Switch>(R.id.weatherSwitch)
+    private val feelsLike = activity.findViewById<Switch>(R.id.feelsLike)
     private val city = activity.findViewById<EditText>(R.id.city)
     private val latitude = activity.findViewById<EditText>(R.id.latitude)
     private val longitude = activity.findViewById<EditText>(R.id.longitude)
@@ -22,6 +23,12 @@ class WeatherSection(activity: Activity, private val settings: Settings, private
         longitude.setText(String.format(Locale.ROOT, "%.4f", settings.longitude))
         enabled.setOnCheckedChangeListener { _, on ->
             settings.weatherEnabled = on
+            onChanged()
+        }
+        // Both temperatures are in the cached forecast: switching only resends, no new download
+        feelsLike.isChecked = settings.feelsLike
+        feelsLike.setOnCheckedChangeListener { _, on ->
+            settings.feelsLike = on
             onChanged()
         }
     }

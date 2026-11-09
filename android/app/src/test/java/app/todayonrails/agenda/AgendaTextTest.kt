@@ -56,6 +56,13 @@ class AgendaTextTest {
     }
 
     @Test
+    fun `the send time goes last in the settings, only when given`() {
+        val sent = AgendaText.build("Brussels", today, emptyList(), settings, true, sentAt = at(31, 7, 5))
+        assertEquals("Brussels · 31/10 · cfg next=120 focus=15 during=1 ready=0 rail=180 buzz=none sent=31/10T07:05", sent)
+        assertTrue(!AgendaText.build("Brussels", today, emptyList(), settings, true).contains("sent="))
+    }
+
+    @Test
     fun `no weather is marked at the end`() {
         val text = AgendaText.build("Brussels", today, emptyList(), settings, withWeather = false)
         assertEquals("Brussels · 31/10 · cfg next=120 focus=15 during=1 ready=0 rail=180 buzz=none · no weather", text)

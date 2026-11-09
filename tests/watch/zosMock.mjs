@@ -22,6 +22,7 @@ function createMock() {
     agenda: '', // the weather location name: the agenda text
     battery: 80,
     heart: 62,
+    heartAge: 2, // minutes since that reading (getToday)
     steps: 4210,
     storage: new Map(),
   }
@@ -91,11 +92,11 @@ function createMock() {
   const HeartRate = counted(class HeartRate { constructor() { construct('HeartRate') } }, {
     getLast: () => state.heart,
     getResting: () => 58,
-    // One value per minute since midnight; the last reading 2 minutes ago
+    // One value per minute since midnight; the last reading state.heartAge minutes ago
     getToday: () => {
       const { hours, minutes } = clock()
       const today = new Array(hours * 60 + minutes + 1).fill(0)
-      if (today.length > 2) today[today.length - 3] = state.heart
+      if (today.length > state.heartAge) today[today.length - 1 - state.heartAge] = state.heart
       return today
     },
     onLastChange: (cb) => listeners.heart.push(cb),

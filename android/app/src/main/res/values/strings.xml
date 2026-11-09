@@ -47,6 +47,8 @@
     <string name="weather">Weather</string>
     <string name="weather_switch">Show the weather (uses the internet)</string>
     <string name="weather_note">The forecast comes from Open-Meteo: only the coordinates below are sent, no account needed. Without it the watchface hides the temperature. Turn off Breezy Weather\'s Gadgetbridge option: only one app can send weather.</string>
+    <string name="feels_like">Feels-like temperature</string>
+    <string name="feels_like_note">How warm it feels, with wind, humidity and sun taken into account, instead of the air temperature.</string>
     <string name="city">City shown in the watch\'s weather app</string>
     <string name="latitude">Latitude</string>
     <string name="longitude">Longitude</string>

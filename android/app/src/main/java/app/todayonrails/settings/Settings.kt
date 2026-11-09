@@ -70,6 +70,11 @@ class Settings(context: Context) {
         get() = prefs.getBoolean("weather", true)
         set(v) = prefs.edit().putBoolean("weather", v).apply()
 
+    // Send how warm it feels (Open-Meteo's apparent temperature) instead of the air temperature
+    var feelsLike: Boolean
+        get() = prefs.getBoolean("feels_like", true)
+        set(v) = prefs.edit().putBoolean("feels_like", v).apply()
+
     // Shown first in the weather location name, and used for the forecast
     var city: String
         get() = prefs.getString("city", "Brussels")!!

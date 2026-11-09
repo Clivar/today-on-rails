@@ -12,9 +12,11 @@
         { "start": "2026-10-31T18:00", "end": "2026-10-31T18:00", "title": "Water the plants" },
         { "start": "2026-11-01T14:00", "end": "2026-11-01T15:00", "title": "Dentist", "place": "Kerkstraat 1" }
       ],
-      "text": "Brussels · 31/10 · cfg next=120 focus=15 during=1 ready=60 rail=60 buzz=start+end+ready · C09:00-10:30 Team call · R18:00 Water the plants · 1/11 · C@14:00-15:00 Dentist",
+      "sentAt": "2026-10-31T07:42",
+      "text": "Brussels · 31/10 · cfg next=120 focus=15 during=1 ready=60 rail=60 buzz=start+end+ready sent=31/10T07:42 · C09:00-10:30 Team call · R18:00 Water the plants · 1/11 · C@14:00-15:00 Dentist",
       "watchNow": "2026-10-31T08:00",
       "watchSees": {
+        "sentMinutesAgo": 18,
         "weather": true,
         "settings": { "next": 120, "focus": 15, "during": true, "ready": 60, "rail": 60, "buzz": { "start": true, "end": true, "ready": true } },
         "items": [

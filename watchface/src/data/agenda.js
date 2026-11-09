@@ -61,6 +61,18 @@ function parseSettings(part) {
   return s
 }
 
+// cfg sent=D/MTHH:MM: when the phone sent the agenda → minuteOf that time, or null. The year is the
+// one that puts it nearest now (a text sent on 31/12 read on 1/1 is from last year).
+const SENT = / sent=(\d{1,2})\/(\d{1,2})T(\d{1,2}):(\d{2})(?: |$)/
+function parseSent(part, now) {
+  const m = part.match(SENT)
+  if (!m) return null
+  let year = now.year
+  if (Number(m[2]) > now.month + 6) year -= 1
+  else if (Number(m[2]) < now.month - 6) year += 1
+  return dayNumber(year, Number(m[2]), Number(m[1])) * 1440 + Number(m[3]) * 60 + Number(m[4])
+}
+
 // now: { year, month (1-12), day, hours, minutes }
 // Items keep minutes relative to now: inMin (start) and endInMin (end; same as start for reminders).
 // items: what's on or still to come, by start; justPast: moments without length up to LATE_MIN ago.
@@ -69,6 +81,7 @@ export function parseAgenda(cityName, now) {
   const result = {
     city: parts[0] || '', items: [], justPast: [], valid: false, weather: !parts.includes(NO_WEATHER),
     settings: Object.assign({}, DEFAULT_SETTINGS),
+    sentMinute: null, // when the phone sent it (minuteOf), from cfg sent=; null when it doesn't say
   }
   if (parts.length < 2 || !DATE.test(parts[1])) return result
 
@@ -98,6 +111,7 @@ export function parseAgenda(cityName, now) {
     }
     if (CFG.test(part)) {
       result.settings = parseSettings(part)
+      result.sentMinute = parseSent(part, now)
       continue
     }
     const m = part.match(ITEM)
@@ -262,6 +276,25 @@ export function freeUntil(agenda, next, is24) {
   if (next.daysAhead === 0) return `Free until ${t}`
   if (next.daysAhead < 7) return `Free until ${formatDay(next)} ${t}`
   return `Free until ${formatDay(next)}`
+}
+
+// The phone sends the agenda at least every 6 hours while it and Gadgetbridge work (and the watch
+// fetches it within about 30 min). Older than this, something in that chain has stopped (Gadgetbridge
+// lost the watch after an update, the phone app stopped syncing…) and what the face shows may be wrong.
+export const STALE_MIN = 8 * 60
+
+// "No update since 18:08" / "No update since Sat 18:08" when the agenda is that old, else null.
+// Agendas from phone apps that don't send the time are never stale.
+export function staleNotice(agenda, now, is24) {
+  if (agenda.sentMinute === null || agenda.sentMinute === undefined) return null
+  const nowMinute = minuteOf(now)
+  const age = nowMinute - agenda.sentMinute
+  if (age < STALE_MIN) return null
+  const sent = agenda.sentMinute % 1440
+  const time = formatTime(Math.floor(sent / 60), sent % 60, is24)
+  const sentDay = Math.floor(agenda.sentMinute / 1440)
+  if (sentDay === Math.floor(nowMinute / 1440)) return `No update since ${time}`
+  return `No update since ${DAYS[(sentDay + 4) % 7]} ${time}` // day 0 (1 Jan 1970) was a Thursday
 }
 
 // Shorter variant when the full line doesn't fit

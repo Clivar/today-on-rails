@@ -34,9 +34,11 @@ export function createComplications(screen) {
       x += size + 6 + textWidth('14°', 'semibold', size) + gap
     }
 
-    // Fresh reading in white; otherwise the resting heart rate in grey
+    // A fresh reading in white with a pulse; otherwise the resting heart rate in grey, with a calm pulse
+    // and zz (data/state.js readHeart: fresh = measured in the last 10 minutes)
     const hr = state.heart.value > 0 ? '' + state.heart.value : '--'
-    hrIcon.set({ x, y: ICON_Y, src: `images/heart-${size}.png` })
+    const icon = state.heart.fresh ? 'heart' : 'heart-rest'
+    hrIcon.set({ x, y: ICON_Y, src: `images/${icon}-${size}.png` })
     hrText.set({ x: x + size + 6, y: cssTop(TOP, size, 1.2), text: hr, text_size: size, color: state.heart.fresh ? C.text : C.muted })
     x += size + 6 + textWidth(hr, 'semibold', size) + gap
 

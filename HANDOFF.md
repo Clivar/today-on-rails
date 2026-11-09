@@ -119,6 +119,21 @@ Open: a lit screenshot of each layout with the lazily created parts (the review 
 was done in code; the dim screen and the lit clock face were seen on the watch). Measure the lit minute
 tick on the watch (the perf build shows it as `tick … ms` while lit).
 
+## 2026-11-09: the watch stopped getting updates (fixed) + "No update since …"
+
+Reported: an event missing ("Nothing today"), a reminder from another calendar not on the watch, the
+weather gone for days and the temperature wrong. Found on the phone: the app synced fine (hourly job ran,
+the event was in the text), but **Gadgetbridge had updated itself on 2026-11-07 18:08 and was "Not
+connected" to the watch since** — its "connect when Bluetooth is on" setting was off, which is what
+makes it reconnect after an update. Fixed by reconnecting and turning that setting on (with the owner's
+OK; "Start automatically" was already on).
+
+- New: the phone sends `sent=D/MTHH:MM` in the cfg; after 8 h without an update the face says "No update
+  since Sat 18:08" in orange where it would claim "Nothing planned" / "Nothing else today" / the next
+  items (lit layouts and the dim clear layout). Tests: `tests/watch/stale.test.mjs`, agenda and parity.
+- The temperature: the app still uses its default coordinates (central Brussels). Model temperature for
+  the wrong place, at most an hour old, explains a few degrees. The owner can set their location in the app.
+
 ## Known limitations
 
 - New calendar data reaches the watch on its own weather fetch: up to ~30 min (occasionally longer).

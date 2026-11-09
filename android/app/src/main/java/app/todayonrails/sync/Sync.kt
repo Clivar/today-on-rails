@@ -10,6 +10,7 @@ import app.todayonrails.gadgetbridge.Gadgetbridge
 import app.todayonrails.settings.Settings
 import app.todayonrails.weather.OpenMeteo
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
@@ -52,18 +53,24 @@ object Sync {
             buzzGetReady = settings.buzzGetReady,
             railMinutes = settings.railMinutes,
         )
-        val agenda = AgendaText.build(settings.city, LocalDate.now(), events, watch, withWeather = forecast != null)
+        val now = LocalDateTime.now()
+        val agenda = AgendaText.build(settings.city, now.toLocalDate(), events, watch, withWeather = forecast != null, sentAt = now)
         settings.lastAgenda = agenda
 
-        // Skip identical updates: saves Bluetooth traffic and work on the watch
-        val hash = agenda.hashCode() * 31 + settings.cachedWeatherAt.hashCode()
+        // Skip identical updates: saves Bluetooth traffic and work on the watch. Compared without the
+        // send time (it changes every time); identical data is still resent every 6 h, which keeps the
+        // watch's "No update since …" notice (after 8 h) away while the phone and Gadgetbridge work.
+        val same = AgendaText.build(settings.city, now.toLocalDate(), events, watch, withWeather = forecast != null)
+        val hash = same.hashCode() * 31 + settings.cachedWeatherAt.hashCode()
         val recent = System.currentTimeMillis() - settings.lastSentAt < RESEND_AFTER_MS
         if (reason != Reason.MANUAL && hash == settings.lastSentHash && recent) {
             settings.lastSync = "${time()}: no changes"
             return
         }
 
-        val sent = Gadgetbridge.sendWeather(context, agenda, settings.latitude, settings.longitude, forecast)
+        // Feels-like or air temperature (both are in the forecast): the watch shows whichever is sent
+        val temperatures = forecast?.let { if (settings.feelsLike) OpenMeteo.feelsLike(it) else it }
+        val sent = Gadgetbridge.sendWeather(context, agenda, settings.latitude, settings.longitude, temperatures)
         if (!sent) {
             settings.lastSync = "${time()}: Gadgetbridge is not installed"
             return

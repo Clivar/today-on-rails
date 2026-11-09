@@ -29,10 +29,15 @@ object AgendaText {
     const val MAX_CHARS = 400
     private const val MAX_TITLE = 40
 
-    fun build(city: String, today: LocalDate, events: List<Event>, settings: WatchSettings, withWeather: Boolean): String {
+    // sentAt: when it's sent, so the watch can tell when it's no longer getting updates ("No update
+    // since …"); null leaves it out (Sync compares texts without it to skip identical updates).
+    fun build(
+        city: String, today: LocalDate, events: List<Event>, settings: WatchSettings, withWeather: Boolean,
+        sentAt: LocalDateTime? = null,
+    ): String {
         // Start at the first event's day if it began before today (an ongoing overnight event)
         var day = minOf(today, events.firstOrNull()?.start?.toLocalDate() ?: today)
-        val head = listOf(clean(city).ifEmpty { "Today On Rails" }, date(day), settings(settings))
+        val head = listOf(clean(city).ifEmpty { "Today On Rails" }, date(day), settings(settings, sentAt))
         val tail = if (withWeather) "" else SEP + NO_WEATHER
 
         val parts = head.toMutableList()
@@ -47,14 +52,15 @@ object AgendaText {
         return parts.joinToString(SEP) + tail
     }
 
-    private fun settings(s: WatchSettings): String {
+    private fun settings(s: WatchSettings, sentAt: LocalDateTime?): String {
         val buzz = listOfNotNull(
             "start".takeIf { s.buzzAtStart },
             "end".takeIf { s.buzzBeforeEnd },
             "ready".takeIf { s.buzzGetReady && s.getReadyMinutes > 0 },
         ).ifEmpty { listOf("none") }.joinToString("+")
         return "cfg next=${s.nextMinutes} focus=${s.todayCardBefore} during=${if (s.todayCardDuring) 1 else 0} " +
-            "ready=${s.getReadyMinutes} rail=${s.railMinutes} buzz=$buzz"
+            "ready=${s.getReadyMinutes} rail=${s.railMinutes} buzz=$buzz" +
+            (sentAt?.let { " sent=${date(it.toLocalDate())}T${hhmm(it)}" } ?: "")
     }
 
     private fun date(d: LocalDate) = "${d.dayOfMonth}/${d.monthValue}"

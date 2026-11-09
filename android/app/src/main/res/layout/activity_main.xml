@@ -55,6 +55,8 @@
         <TextView style="@style/Section" android:text="@string/weather" />
         <Switch android:id="@+id/weatherSwitch" style="@style/Toggle" android:text="@string/weather_switch" />
         <TextView style="@style/Note" android:text="@string/weather_note" />
+        <Switch android:id="@+id/feelsLike" style="@style/Toggle" android:text="@string/feels_like" />
+        <TextView style="@style/Note" android:text="@string/feels_like_note" />
         <EditText android:id="@+id/city" style="@style/Field" android:importantForAutofill="no" android:hint="@string/city" android:inputType="textCapWords" />
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
             <EditText android:id="@+id/latitude" style="@style/Field" android:layout_width="0dp" android:layout_weight="1"
