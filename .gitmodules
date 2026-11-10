@@ -1,3 +1,6 @@
 [submodule "gadgetbridge"]
 	path = gadgetbridge
 	url = https://codeberg.org/Freeyourgadget/Gadgetbridge.git
+[submodule "whisper.cpp"]
+	path = whisper.cpp
+	url = https://github.com/ggml-org/whisper.cpp.git

@@ -148,6 +148,54 @@ android/app/src/main/java/app/todayonrails/
 3. In Gadgetbridge, make sure no other app sends weather (e.g. turn off Breezy Weather's Gadgetbridge option).
 4. Optional: watch settings → Display → Always On Display, with "Style follows Watchface".
 
+## Voice notes (Today On Rails Voice)
+
+A second, separate phone app (`android/voice`, package `app.todayonrails.voice`). Hold the watch's
+button (Zepp OS's assistant, Zepp Flow) and speak: about 6 seconds (the watch cuts off there when no Zepp cloud answers; measured). Gadgetbridge forwards the voice
+to this app, which transcribes it **on the phone** with Whisper and writes it into the calendar:
+
+- into the description of the event that was running when you started speaking, as `[14:32] what you said`
+  (a repeating event gets the note on that one occurrence only);
+- the event's title is given to Whisper as its prompt, so names and jargon from the title come out right;
+- nothing running → a 15-minute "Voice note" event (notes in the next 15 minutes join it); during an
+  invitation you can't edit → a "Notes: <title>" event over the same time;
+- all-day, declined and cancelled events don't count; you pick the calendars to look in and where new
+  events go;
+- the watch answers at once: "Saved" and the event the note goes to (or "New: Voice note"); the
+  transcription runs afterwards in a background job (expedited JobScheduler job: it isn't frozen or
+  killed halfway, and runs again if stopped). Recordings are saved first and deleted once written, so
+  nothing is lost; the app's "Recent notes" shows what was written.
+
+No internet permission: the model (Whisper small, multilingual, 190 MB) is inside the APK. Two
+permissions: read and write the calendar. Uses Gadgetbridge's voice service API, unchanged; it needs a
+Gadgetbridge with "forward assistant voice to an external voice service" (on master since 2026-11-08,
+not in 2026.11.1). In Gadgetbridge: Developer options → Experimental settings on; the watch's
+Experimental settings → Assistant service on, reconnect; Developer settings → Voice Assistant →
+package `app.todayonrails.voice`, class `app.todayonrails.voice.gadgetbridge.VoiceService` (the app
+shows both with copy buttons).
+
+```
+android/voice/src/main/java/app/todayonrails/voice/
+  MainActivity.kt                       wires the screen's sections together
+  ui/StatusSection.kt                   Gadgetbridge found, calendar access, model, recordings waiting
+  ui/GadgetbridgeSection.kt             what to enter in Gadgetbridge, copy buttons
+  ui/CalendarsSection.kt                calendars to look in, calendar for new events
+  ui/LanguageSection.kt                 Whisper's language (detected by default)
+  ui/HistorySection.kt                  the last 10 notes
+  gadgetbridge/VoiceContract.kt         Gadgetbridge's voice service API, sender check
+  gadgetbridge/VoiceService.kt          the bound service: collects a session, saves it, answers at once
+  recording/Recording.kt, RecordingStore.kt   a session's Opus packets on disk until written
+  audio/Opus.kt, OpusDecoder.kt, Resample.kt  Opus → PCM (Android's MediaCodec) → 16 kHz floats
+  transcribe/Whisper.kt, Transcript.kt  whisper.cpp over JNI (src/main/cpp), output cleaning, prompt
+  calendar/CalendarStore.kt             events at a moment, append (exception for repeating), create
+  calendar/CurrentEvent.kt              which event a note belongs to, or what to create
+  calendar/NoteText.kt                  "[14:32] …" appended after a blank line (or <br> for HTML)
+  pipeline/Pipeline.kt                  recording → transcript → calendar, one at a time; where a note goes
+  pipeline/Outcome.kt                   what happened to a note, and what the watch shows
+  pipeline/TranscribeJob.kt             the background job that transcribes waiting recordings
+  settings/Settings.kt                  choices and recent notes
+```
+
 ## Agenda text format
 
 ```
@@ -173,10 +221,11 @@ Brussels · 31/10 · cfg next=360 focus=15 during=1 ready=60 rail=180 buzz=start
 
 Open the folder in the dev container (`.devcontainer/`), or on Debian/Ubuntu run `tools/setup.sh` once:
 it installs Chromium, JDK 21, adb, the Android SDK (platform 37) and the Zepp build tool (`npm install`,
-which also applies a fix for zeus 1.9.3 on Node 26).
+which also applies a fix for zeus 1.9.3 on Node 26); for the voice app the NDK, CMake, the whisper.cpp
+submodule and the Whisper model.
 
 ```bash
-git submodule update --init      # Gadgetbridge (only needed for work on Gadgetbridge itself)
+git submodule update --init whisper.cpp   # the voice app's speech engine (Gadgetbridge: reference only)
 
 # Tests (details: "Testing" below)
 npm test                         # watchface + parity, watch half
@@ -193,6 +242,10 @@ npm run metrics                  # only after changing fonts
 cd android
 ./gradlew testDebugUnitTest lintRelease assembleRelease
 adb install -r app/build/outputs/apk/release/app-release.apk
+
+# Voice app (needs the model: tools/voice-model.sh [small-q5_1|base-q5_1|…], ~190 MB, checksum-verified)
+./gradlew :voice:assembleRelease                         # -PvoiceModel=base-q5_1 for a smaller, faster model
+adb install -r voice/build/outputs/apk/release/voice-release.apk
 ```
 
 Release signing reads `android/keystore.properties` (`storeFile`, `storePassword`, `keyAlias`,
@@ -239,6 +292,8 @@ Change the format on one side only and a parity test fails. Around that:
   labels, buzz timing, the rail's geometry, refresh skipping, the test builds' agendas, and the clock's
   digit boxes (a digit wider than its box slides sideways on the watch);
 - `android/app/src/test/` — the phone's text builder: title cleaning, the size cap, buzz and rail settings;
+- `android/voice/src/test/` — the voice app: which event a note goes to, the note text, Opus/resampling,
+  the recording file, transcript cleaning, the watch's reply;
 - the look and the buzzes are checked on the real watch with test builds and screenshots.
 
 `npm run test:all` (`tools/test-all.sh`) runs all of it plus Android lint. What each file covers:
@@ -248,13 +303,14 @@ Change the format on one side only and a parity test fails. Around that:
 
 ```
 watchface/      Zepp OS watchface (zeus project)
-android/        Android companion app (Gradle, no libraries)
+android/        Android apps (Gradle): app/ the companion (no libraries), voice/ the voice notes app
 tests/         parity cases shared by both sides, watchface tests (README inside)
 tools/          build, asset generation, test-all.sh; test-builds/ the test agendas; device/ drives the phone + watch over adb
 fonts/          Barlow, Barlow Condensed (OFL)
 design/         the original design boards (renders, markup specs, source HTML)
 screenshots/    real watch screenshots of every layout, and the app
-gadgetbridge/   Gadgetbridge (git submodule, Codeberg) — for the planned voice-assistant work
+gadgetbridge/   Gadgetbridge (git submodule, Codeberg) — reference for its protocols, never modified
+whisper.cpp/    whisper.cpp v1.9.5 (git submodule) — the voice app's on-device speech recognition
 CLAUDE.md       working notes for Claude Code: conventions, device facts, how to test
 HANDOFF.md      current state and how to continue
 ```

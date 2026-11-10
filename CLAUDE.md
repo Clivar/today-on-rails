@@ -32,7 +32,8 @@ npm test                         # watch + parity: node --test tests/ (tests/REA
 npm run test:all                 # everything: npm test + gradle unit tests + lintRelease
 tools/build.sh [test]            # watch: → watchface/dist/*.zab; a test build → build/test-<test>/dist/*.zab
 tools/install.sh <zab>           # install on the watch through Gadgetbridge (needs the phone over adb)
-cd android && ./gradlew testDebugUnitTest lintRelease assembleRelease   # phone app
+cd android && ./gradlew testDebugUnitTest lintRelease assembleRelease   # both phone apps
+tools/voice-model.sh [model]     # the voice app's Whisper model (gitignored), before :voice:assembleRelease
 ```
 
 Always run `npm run test:all` after changes. The agenda text format is shared: change
@@ -153,6 +154,57 @@ base ring. Measure such things on the raw BMP (`/tmp/gbphone/*.bmp`), not by eye
 - Receiving files from the watch on file-transfer v3 is implemented.
 - Watch app-log streaming (`logsType=jsapp`) does not forward watchface `console.log`/logger output.
 - Gadgetbridge logs to logcat (tag = class name) at DEBUG; the file log flushes late.
+
+## Voice app (`android/voice`, Today On Rails Voice)
+
+- A **separate app** (owner's choice), package `app.todayonrails.voice`, same signing key. Zepp Flow voice →
+  Gadgetbridge's voice service API → on-device Whisper (whisper.cpp submodule, JNI in `src/main/cpp`) →
+  the transcript appended to the event running when the recording started (its title is Whisper's
+  `initial_prompt`), or a new event. **No live answer** wanted, just the transcript in the calendar.
+  **No INTERNET permission**; the model is bundled in the APK (stored uncompressed, read via AAsset).
+- **Gadgetbridge is never modified** (owner's rule): the user enters package
+  `app.todayonrails.voice` and class `app.todayonrails.voice.gadgetbridge.VoiceService` in Gadgetbridge's
+  Voice Assistant settings. Those fields exist in 0.95/2026.11.x (from Fossil), but the Zepp OS assistant
+  only uses them since commit `28cea5443c` (master, 2026-11-08; not in 2026.11.0/2026.11.1).
+- The API (`ZeppOsVoiceServiceBridge`): bind with action `nodomain.freeyourgadget.gadgetbridge.VOICE_COMMAND`;
+  `what=0` one Opus packet (`VOICE_DATA`, `VOICE_ENCODING`="OPUS", 16 kHz mono), `what=1` end; reply via
+  `replyTo` `what=100` (`TITLE`/`SUBTITLE`/`TEXT`) or `101` (`TEXT`). Gadgetbridge ends the recording at
+  14 s and gives up 15 s after the end ("No reply from voice service"). We answer **at once** ("Saved" +
+  the event, owner's wish) and transcribe in an **expedited job**: after the reply Gadgetbridge unbinds and
+  Android's cached-app freezer would stop a plain background thread. Gadgetbridge has `QUERY_ALL_PACKAGES`, so it can
+  see our app. One `ZeppOsAssistantService` per endpoint (Alexa 0x11, Zepp Flow 0x4a), each with its
+  own bridge, so replies go back on the right one.
+- The exported service checks `Message.sendingUid` belongs to a Gadgetbridge package.
+- **Why Zepp Flow stops at 6.5 s: found in the official Zepp app** (10.10.5-play, jadx, 2026-11-09;
+  `VoiceModule` = obfuscated `d9d0`, dispatch in `xja0`, session `x4f0`, VAD → `b5f0.f()` → `a5f0`).
+  The watch's `0C` is `RecordStartParam(vadMode, roundId)`; byte `00` = `VAD_MODE_VOICE` (`01` = SKIP):
+  **the phone is expected to run the voice-activity detection**. When it hears speech it sends **`0x0D`
+  (no payload, "speech detected")**; without it the watch ends with `0E 03` = **TIMEOUT** and `0E 01` =
+  QUIT_BY_USER. `0E` end reasons by byte: `00` NORMAL, `01` QUIT_BY_USER, `02` USER_FINISH_SPEAK,
+  `03` TIMEOUT. Phone → watch commands in the app: `03` start ack (list of strings; `03 00` = empty, what
+  Gadgetbridge sends), `06` stop listening/"thinking", `07` `[bool][text\0]` (text with a final flag,
+  likely the live transcript), `08` complex reply, `09` simple reply, `0A` `[bool][u32 len][audio]` TTS,
+  `0B` voice more, `0D` speech detected, `0F` `[code][text\0]` error. Watch → phone handled: `01` start,
+  `02` destroy, `04` events (alarms), `05` audio, `0C` record start, `0E` end reason, `17` string
+  (`flex://` URIs, "ACT"), `18` JSON (`o1`: type, id, JSON). Gadgetbridge sends none of `07`/`0D`, so it
+  can't keep Flow listening; fixing it is a Gadgetbridge change (send `0D` once audio arrives, treat `0E`
+  as the end of the recording) — upstream, not in the owner's install. Not yet tested on the watch.
+- **Measured on the Bip 6** (2026-11-09, Gadgetbridge 2026.11.0, `Huami2021ChunkedDecoder` "Decrypted data
+  0x004a" in logcat): `01` start (JSON params, `app_name:flow`) → phone start ack after 0.7 s → `17`
+  context (`flex://app/context?…`), `18` capability report, `0C` → voice `05` (four 20 ms Opus frames per
+  message, TOC `0x48` = SILK wideband, 320 samples at 16 kHz) → `17` "ACT" (end of speech) → `0E 03`,
+  `0E 01` → **`02` end, sent by the watch itself** right after you stop talking (so Gadgetbridge's 14 s
+  limit isn't what ends it). With no reply (2026.11.0 ignores `02`), Zepp Flow closes. **Zepp Flow cuts you off
+  6.5 s after its `0C`** (~6.2 s of speech, 82–83 voice messages) mid-sentence, every time: holding the
+  button changes nothing and the watch has no Flow settings (context says `Setting_VoiceDetectMode=auto`;
+  presumably Zepp's cloud normally keeps it listening). Nothing in the voice service API can extend it, so
+  with Gadgetbridge unmodified **a note is ~6 s**. Voice Memo (no such cap) lands only in Gadgetbridge's
+  private `Android/data/…/files/<MAC>/voicememo/`, fetched on a manual sync: not reachable by our app.
+- Opus is decoded with MediaCodec (always 48 kHz out; csd-0 OpusHead, csd-1/2 pre-skip/preroll in ns),
+  averaged down to 16 kHz.
+- Not yet verified on the device: the MediaCodec decode of the watch's packets, Whisper's speed on the
+  Pixel (small-q5_1, beam search, 4 threads), calendar writes through Google's sync adapter, how Zepp Flow
+  shows title/subtitle/text. Measure on the phone (`adb logcat -s VoicePipeline VoiceService VoiceWhisper`).
 
 ## Testing on the real devices
 

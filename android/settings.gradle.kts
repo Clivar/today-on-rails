@@ -13,3 +13,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "today-on-rails"
 include(":app")
+include(":voice")

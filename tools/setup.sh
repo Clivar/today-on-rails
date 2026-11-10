@@ -2,6 +2,7 @@
 # One-time setup of the build tools (Debian/Ubuntu; run in the dev container or on a similar machine).
 #   Watchface:  Node (zeus build tool via npm), Chromium (renders the image assets)
 #   Phone app:  JDK 21, Android SDK (platform 37), adb
+#   Voice app:  NDK + CMake (whisper.cpp), the whisper.cpp submodule, the Whisper model (~190 MB)
 # Idempotent: skips what's already there.
 set -e
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -26,6 +27,12 @@ if [ ! -d "$SDK/platforms/android-37.0" ]; then
   yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK" --licenses >/dev/null
   "$SDK/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK" "platform-tools" "platforms;android-37.0" "build-tools;36.0.0" >/dev/null
 fi
+# Voice app: NDK and CMake for whisper.cpp (versions pinned in android/voice/build.gradle.kts)
+if [ ! -d "$SDK/ndk/29.0.14206865" ] || [ ! -d "$SDK/cmake/4.1.2" ]; then
+  "$SDK/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK" "ndk;29.0.14206865" "cmake;4.1.2" >/dev/null
+fi
+(cd "$ROOT" && git submodule update --init whisper.cpp)
+"$ROOT/tools/voice-model.sh"
 echo "sdk.dir=$SDK" > "$ROOT/android/local.properties"
 
-echo "Ready. Watchface: npm test && tools/build.sh — phone app: cd android && ./gradlew assembleRelease"
+echo "Ready. Watchface: npm test && tools/build.sh — phone apps: cd android && ./gradlew :app:assembleRelease :voice:assembleRelease"

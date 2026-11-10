@@ -19,3 +19,8 @@ android/keystore.properties
 .idea/
 .vscode/
 .DS_Store
+
+# Voice app: the Whisper model is downloaded by tools/voice-model.sh, never committed
+android/voice/build/
+android/voice/.cxx/
+android/voice/src/main/assets/models/

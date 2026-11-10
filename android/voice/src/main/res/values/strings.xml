@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Today On Rails Voice</string>
+    <string name="intro">Hold the watch button and speak. What you say is written into the calendar event that\'s running, or into a new event when nothing is. Speech is recognised on this phone: nothing goes to the internet.</string>
+
+    <!-- Status -->
+    <string name="status">Status</string>
+    <string name="status_gadgetbridge_ok">Gadgetbridge: found</string>
+    <string name="status_gadgetbridge_missing">Gadgetbridge: not installed</string>
+    <string name="status_calendar_ok">Calendar access: allowed</string>
+    <string name="status_calendar_missing">Calendar access: not allowed yet</string>
+    <string name="status_model">Speech model: Whisper %1$s</string>
+    <string name="status_waiting">Waiting to be written: %1$d</string>
+    <string name="allow_calendar">Allow calendar access</string>
+
+    <!-- Gadgetbridge -->
+    <string name="gadgetbridge">In Gadgetbridge</string>
+    <string name="gadgetbridge_steps">1. Settings → Developer options: turn on \"Experimental settings\".\n2. Your watch → Device settings → Experimental settings: turn on \"Assistant service\", then reconnect the watch.\n3. Device settings → Developer settings → Voice Assistant: enter the two values below.</string>
+    <string name="voice_service_package">Voice service package</string>
+    <string name="voice_service_class">Voice service class</string>
+    <string name="copy_package">Copy package</string>
+    <string name="copy_class">Copy class</string>
+    <string name="copied">Copied</string>
+
+    <!-- Calendars -->
+    <string name="calendars">Calendars</string>
+    <string name="calendars_note">A note goes to the event that was running when you started speaking. All-day events and declined ones don\'t count. During an invitation you can\'t edit, the note goes to a new \"Notes: …\" event over the same time.</string>
+    <string name="look_in_label">Look for the running event in</string>
+    <string name="new_events_label">New events go to</string>
+    <string name="new_events_note">With nothing running, a note becomes a 15-minute \"Voice note\" event; notes in the next 15 minutes join it.</string>
+    <string name="calendars_none">No calendar you can write to. Add an account to the phone, or allow calendar access.</string>
+
+    <!-- Speech -->
+    <string name="speech">Speech recognition</string>
+    <string name="language_label">Language</string>
+    <string name="language_note">The running event\'s title is given to Whisper as context, so its names and words come out right.</string>
+    <string-array name="languages">
+        <item>Detect for each note</item>
+        <item>English</item>
+        <item>Nederlands</item>
+        <item>Français</item>
+        <item>Deutsch</item>
+        <item>Español</item>
+        <item>Italiano</item>
+    </string-array>
+    <string-array name="language_codes" translatable="false">
+        <item>auto</item>
+        <item>en</item>
+        <item>nl</item>
+        <item>fr</item>
+        <item>de</item>
+        <item>es</item>
+        <item>it</item>
+    </string-array>
+
+    <!-- Recent notes -->
+    <string name="recent">Recent notes</string>
+    <string name="recent_none">None yet</string>
+    <string name="recent_note">Kept only in this app, the last 10.</string>
+</resources>

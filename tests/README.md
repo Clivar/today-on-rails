@@ -2,7 +2,7 @@
 
 ```bash
 npm test             # watchface + watch half of the parity tests (node --test tests/)
-npm run test:all     # everything: the above, the phone app's unit tests and Android lint
+npm run test:all     # everything: the above, both phone apps' unit tests and Android lint
 ```
 
 | Where | What it checks |
@@ -22,6 +22,7 @@ npm run test:all     # everything: the above, the phone app's unit tests and And
 | `watch/noSpread.test.mjs` | no object spread in `watchface/` (3.9 ms per use on the watch) |
 | `watch/clock.test.mjs` | the clock's digit boxes are wider than every glyph and centred on their slots (otherwise a digit slides sideways on the watch), and the widest time fits the screen |
 | `android/app/src/test/.../agenda/AgendaTextTest.kt` | the phone's text builder: title cleaning, the 400-character cap, buzz and rail settings |
+| `android/voice/src/test/` | the voice app: which event a note goes to (overlaps, all-day/declined/cancelled, invitations → "Notes: …", nothing → "Voice note"), the appended note text (plain and HTML descriptions), Opus packet durations and the OpusHead, resampling to 16 kHz, the recording file and store, Whisper output cleaning and prompt, the watch's immediate reply |
 
 ## Parity
 

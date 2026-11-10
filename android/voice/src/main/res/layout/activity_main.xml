@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="24dp">
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="@string/app_name" android:textColor="@color/text" android:textSize="32sp" android:textStyle="bold" />
+        <TextView style="@style/Note" android:text="@string/intro" />
+
+        <!-- Status -->
+        <TextView style="@style/Section" android:text="@string/status" />
+        <TextView android:id="@+id/status" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:lineSpacingExtra="4dp" android:textColor="@color/text" android:textSize="16sp" />
+        <Button android:id="@+id/allowCalendar" style="@style/PrimaryButton" android:text="@string/allow_calendar" />
+
+        <!-- What to enter in Gadgetbridge -->
+        <TextView style="@style/Section" android:text="@string/gadgetbridge" />
+        <TextView style="@style/Note" android:text="@string/gadgetbridge_steps" />
+        <TextView style="@style/Label" android:text="@string/voice_service_package" />
+        <TextView android:id="@+id/servicePackage" style="@style/Code" />
+        <Button android:id="@+id/copyPackage" style="@style/SecondaryButton" android:text="@string/copy_package" />
+        <TextView style="@style/Label" android:text="@string/voice_service_class" />
+        <TextView android:id="@+id/serviceClass" style="@style/Code" />
+        <Button android:id="@+id/copyClass" style="@style/SecondaryButton" android:text="@string/copy_class" />
+
+        <!-- Where notes go -->
+        <TextView style="@style/Section" android:text="@string/calendars" />
+        <TextView style="@style/Note" android:text="@string/calendars_note" />
+        <TextView style="@style/Label" android:text="@string/look_in_label" />
+        <LinearLayout android:id="@+id/lookInList" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" />
+        <TextView style="@style/Label" android:text="@string/new_events_label" />
+        <Spinner android:id="@+id/newEventsCalendar" style="@style/Choice" />
+        <TextView style="@style/Note" android:text="@string/new_events_note" />
+
+        <!-- Speech recognition -->
+        <TextView style="@style/Section" android:text="@string/speech" />
+        <TextView style="@style/Label" android:text="@string/language_label" />
+        <Spinner android:id="@+id/language" style="@style/Choice" />
+        <TextView style="@style/Note" android:text="@string/language_note" />
+
+        <!-- Recent notes -->
+        <TextView style="@style/Section" android:text="@string/recent" />
+        <TextView android:id="@+id/history" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:background="@color/card" android:lineSpacingExtra="6dp" android:padding="12dp"
+            android:textColor="@color/text" android:textIsSelectable="true" android:textSize="14sp" />
+        <TextView style="@style/Note" android:text="@string/recent_note" />
+    </LinearLayout>
+</ScrollView>

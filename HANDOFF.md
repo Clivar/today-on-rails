@@ -134,6 +134,33 @@ OK; "Start automatically" was already on).
 - The temperature: the app still uses its default coordinates (central Brussels). Model temperature for
   the wrong place, at most an hour old, explains a few degrees. The owner can set their location in the app.
 
+## 2026-11-09: voice notes app (built, not yet tried on the devices)
+
+Gadgetbridge master gained "forward assistant voice to an external voice service" (`28cea5443c`,
+2026-11-08; docs on the website, marked unreleased): the watch's Zepp Flow voice goes to an app named in
+Gadgetbridge's Voice Assistant settings. The owner chose: a **separate app**, **on-device Whisper**, no
+live answer — **write the transcript into the current calendar event, or create one**, with the event's
+title as Whisper's context. Gadgetbridge stays unmodified (submodule moved to master `4b6d96caf4` for
+reference only).
+
+- New: `android/voice` (Today On Rails Voice, `app.todayonrails.voice`), whisper.cpp v1.9.5 submodule,
+  `tools/voice-model.sh` (Whisper small q5_1, 190 MB, checksum-verified, gitignored). README "Voice
+  notes" has the behaviour and file map; CLAUDE.md the API facts.
+- Release APK builds (193 MB, signed with the same key), 38 unit tests, lint clean (`npm run test:all`).
+- **Needs a Gadgetbridge with that commit**: the next release, or a nightly
+  (`nodomain.freeyourgadget.gadgetbridge.nightly`, installs next to the F-Droid one; the watch would have to
+  move over with its auth key — ask the owner first). Then set package/class as shown in the app.
+
+**Device checks to do:**
+1. A recording reaches the app (`adb logcat -s VoiceService VoicePipeline VoiceWhisper`), the Opus decode
+   works, and the transcript is right; note Whisper's time for ~14 s (it runs in the background, so
+   only battery matters: if it's long, try `-PvoiceModel=base-q5_1` or greedy decoding).
+2. The note appears in the running event's description in Google Calendar (and on one occurrence of a
+   repeating event only); "Voice note" / "Notes: …" events when nothing editable runs.
+3. What Zepp Flow shows for the immediate reply ("Saved" / event title / "Transcribing on the phone"), and
+   that the expedited job runs right after (logcat `TranscribeJob`, `VoicePipeline`).
+4. Calendar access missing → the recording waits and goes in when the app is opened with access.
+
 ## Known limitations
 
 - New calendar data reaches the watch on its own weather fetch: up to ~30 min (occasionally longer).
@@ -155,7 +182,7 @@ OK; "Start automatically" was already on).
 3. Quiet hours: no Today card / no buzz at night.
 4. Faster updates: a small Gadgetbridge patch so a new weather location is applied (status 2 today) or the
    watch's weather refresh interval is shorter — upstreamable.
-5. Done / snooze from the watch — needs a watch → phone channel (comes with the voice work).
+5. Done / snooze from the watch — needs a watch → phone channel (the voice service is one, phone-side only).
 
 ## Next big track: the voice assistant (original goal)
 
