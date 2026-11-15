@@ -1,15 +1,17 @@
-// The Today card's list: the next two items after the event shown ("● 7:30 Walk the dog"); when the
-// phone's updates have stopped, "No update since Sat 18:08" in orange instead (the list could be wrong).
+// The Today card's list: the next two items after the event shown ("● 7:30 Walk the dog", on another
+// day "● Tomorrow 9:00 Dentist"); when the phone's updates have stopped, "No update since Sat 18:08" in
+// orange instead (the list could be wrong).
 import ui from '@zos/ui'
 import { C, F } from '../ui/theme.js'
 import { cssTop, showAll } from '../ui/widgets.js'
 import { textWidth, fitText } from '../ui/text.js'
 import { lazy } from '../ui/lazy.js'
-import { formatTime, itemsAfter, staleNotice } from '../data/agenda.js'
+import { formatWhen, itemsAfter, staleNotice } from '../data/agenda.js'
 
 const TOP = 332
 const ROW = 21 * 1.2 + 10
-const RIGHT = 286 // stay clear of the record button
+// Right edge of the text: clear of the rounded corner and the rail's 4 o'clock tick (x 357)
+const RIGHT = 340
 
 export function createUpNext(screen) {
   const rows = [0, 1].map((i) => {
@@ -36,11 +38,11 @@ export function createUpNext(screen) {
       notice().show(false)
     }
     const items = stale ? [] : itemsAfter(agenda, subject, 2)
-    // Time column: 44 px in the design (12-hour "7:30"); wider for 24-hour "09:00"
+    // Time column: 44 px in the design (12-hour "7:30"); wider for 24-hour "09:00" or another day
     const times = []
     let timeW = 44
     for (let i = 0; i < items.length; i++) {
-      times.push(formatTime(items[i].hours, items[i].minutes, is24, false))
+      times.push(formatWhen(items[i], is24, false))
       timeW = Math.max(timeW, textWidth(times[i], 'semibold', 21))
     }
     const x = 60 + timeW + 10
@@ -55,7 +57,7 @@ export function createUpNext(screen) {
       row.time.show(it)
       row.title.show(it)
       if (!it) continue
-      row.time.setText(times[i])
+      row.time.set({ w: timeW + 10, text: times[i] }) // a box narrower than its text shifts it
       row.title.set({ x, w: RIGHT - x, text: fitText(it.title, 'medium', 21, RIGHT - x) })
     }
   }

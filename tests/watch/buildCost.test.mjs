@@ -13,6 +13,7 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { installZosMock, SCENE_LIT, SCENE_AOD } from './zosMock.mjs'
 import { minuteOf, parseAgenda, chooseLayout } from '../../watchface/src/data/agenda.js'
+import { C } from '../../watchface/src/ui/theme.js'
 import { agendaText } from '../../tools/test-builds/perf.js'
 import { writeAgenda } from '../../tools/test-builds/shared/agendaText.js'
 
@@ -164,15 +165,16 @@ test('dimmed: exactly one IMG_TIME, no date on the Today card, no screen-on sens
   }
 })
 
-test('widgets stack right: background, then the rail, the layout, the record button on top', () => {
+test('widgets stack right: background, then the rail, the layout on top', () => {
   instance(SCENE_LIT)
   const normal = zos.widgets.filter((w) => w.props.show_level === NORMAL)
   assert.deepEqual([normal[0].type, normal[0].props.w, normal[0].props.h], ['FILL_RECT', 390, 450], 'background first')
   assert.equal(normal[1].type, 'STROKE_RECT', 'then the rail (its base ring)')
-  const button = normal.findIndex((w) => w.type === 'BUTTON')
-  // The Today card's own widgets (small clock, title, list) are all under the button
+  // The Today card's own widgets (small clock, title, list) all lie above the rail's ticks
+  const lastTick = normal.findLastIndex((w) => w.type === 'FILL_RECT' && w.props.color === C.tick)
   const card = normal.filter((w) => is.smallClock(w) || is.cardTitle(w) || w.type === 'CIRCLE')
-  assert.ok(card.length > 0 && card.every((w) => normal.indexOf(w) < button), 'the card under the record button')
+  assert.ok(lastTick > 1 && card.length > 0 && card.every((w) => normal.indexOf(w) > lastTick), 'the card above the rail')
+  assert.equal(zos.widgets.filter((w) => w.type === 'BUTTON').length, 0, 'no buttons on the face')
 })
 
 // A face instance on agendas that switch layouts: { clear | next | focus } → its agenda text
@@ -216,7 +218,6 @@ test('lit: switching layouts makes each once, at its level, and shows only the c
   // Second visits made nothing new: one of each
   assert.equal(made(NORMAL, is.cardTitle).length, 2)
   assert.equal(made(NORMAL, is.freeUntil).length, 1)
-  assert.equal(made(NORMAL, (w) => w.type === 'BUTTON').length, 1)
   assert.equal(made(NORMAL, is.complications).length, 5) // IMG and TEXT_IMG: the weather icon, 2 temperatures, heart and steps icons
   // The always-on set followed along at its own level: its clocks, one shown
   assert.equal(made(AOD, (w) => w.type === 'IMG_TIME').length, 3)

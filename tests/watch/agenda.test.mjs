@@ -3,8 +3,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  parseAgenda, chooseLayout, itemsAfter, moreSameDay, freeUntil, formatIn, formatLeft, formatSpan, railTarget,
-  isWrappingUp, DEFAULT_SETTINGS,
+  parseAgenda, chooseLayout, itemsAfter, moreSameDay, freeUntil, formatIn, formatLeft, formatSpan, formatWhen, railTarget,
+  eventLabel, isWrappingUp, DEFAULT_SETTINGS,
 } from '../../watchface/src/data/agenda.js'
 
 const AGENDA =
@@ -64,6 +64,26 @@ test('free until another day', () => {
   const { layout, agenda, subject } = at(20, 30)
   assert.equal(layout, 'clear')
   assert.equal(freeUntil(agenda, subject, true), 'Free until tomorrow 14:00')
+})
+
+test('an event on another day says which day, not just the time', () => {
+  // "next" layout the evening before (with a long "next" window): the day leads its label
+  const s = AGENDA.replace('next=120', 'next=1200')
+  const { layout, subject } = at(20, 15, 31, s)
+  assert.equal(layout, 'next')
+  assert.equal(subject.title, 'Dentist')
+  assert.equal(eventLabel(subject, { is24: true, timeFirst: true }).text, 'TOMORROW 14:00 · IN 17 H 45 MIN')
+  assert.equal(eventLabel(subject, { timeFirst: true }).text, 'TOMORROW 2:00 PM · IN 17 H 45 MIN')
+  // The Today card's line: the start with its day (the span wouldn't fit with it)
+  assert.equal(formatSpan(subject, true), 'Tomorrow 14:00')
+  // The Today card's list during the walk: the dentist is tomorrow
+  const walk = at(19, 45)
+  assert.equal(walk.subject.title, 'Walk')
+  assert.deepEqual(itemsAfter(walk.agenda, walk.subject, 2).map((it) => formatWhen(it, true, false)), ['Tomorrow 14:00'])
+  // Same day stays just the time
+  assert.equal(eventLabel(at(16, 0).subject, { is24: true, timeFirst: true }).text, '18:00 · IN 2 H')
+  // An ongoing event that began yesterday keeps its span
+  assert.equal(formatSpan(at(0, 30).subject, true), '23:00 – 01:00')
 })
 
 test('older strings without settings or end times still work', () => {

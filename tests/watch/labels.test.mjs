@@ -2,7 +2,7 @@
 // the wrap-up in the last minutes, and that the longest labels fit their boxes. Run: npm test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseAgenda, chooseLayout, eventLabel, hasWrapUp, WRAP_UP_MIN } from '../../watchface/src/data/agenda.js'
+import { parseAgenda, chooseLayout, eventLabel, formatSpan, hasWrapUp, WRAP_UP_MIN } from '../../watchface/src/data/agenda.js'
 import { textWidth } from '../../watchface/src/ui/text.js'
 
 const AGENDA =
@@ -88,6 +88,7 @@ const longestToday = [
 ]
 const longestNext = [
   ...worst('C12:30-13:30 Lunch', [31, 0, 31], { timeFirst: true }), // 11 h 59 min ahead
+  ...worst('1/11 · C00:30-01:30 Night train', [31, 12, 31], { timeFirst: true }), // tomorrow, 11 h 59 min ahead
   ...worst(ALL_DAY, [31, 10, 0], { timeFirst: true }),
   ...worst(LUNCH, [31, 12, 25], { timeFirst: true }),
 ]
@@ -98,6 +99,7 @@ test('the worst cases are what they should be', () => {
     'WRAP IT UP · UNTIL 12:30 PM',
   ]) assert.ok(longestToday.includes(s), `${s} in ${longestToday}`)
   assert.ok(longestNext.includes('12:30 PM · IN 11 H 59 MIN'), `${longestNext}`)
+  assert.ok(longestNext.includes('TOMORROW 12:30 AM · IN 11 H 59 MIN'), `${longestNext}`)
 })
 
 // TEXT widgets set char_space 2 between characters
@@ -109,4 +111,17 @@ test('the longest labels fit the Today card (17 px bold, 330 wide)', () => {
 
 test('the longest labels fit the "next" layout (16 px bold, 330 wide)', () => {
   for (const s of longestNext) assert.ok(width(s, 16) <= 330, `${s}: ${width(s, 16)} px`)
+})
+
+test("the Today card's time line fits (30 px medium, 320 wide), also for an event tomorrow", () => {
+  const spans = [true, false].flatMap((is24) => [
+    ['1/11 · C@00:30-01:30 Night train', [31, 22, 31]], // get ready, tomorrow
+    ['C10:00-12:30 Lunch', [31, 12, 25]],
+    ['C10:30-11:30 Brunch', [31, 10, 0]],
+  ].map(([items, [day, hours, minutes]]) => {
+    const agenda = parseAgenda(`Brussels · 31/10 · cfg next=720 ready=120 · ${items}`, { year: 2026, month: 10, day, hours, minutes })
+    return formatSpan(chooseLayout(agenda).subject, is24)
+  }))
+  assert.ok(spans.includes('Tomorrow 12:30 AM'), `${spans}`)
+  for (const s of spans) assert.ok(textWidth(s, 'medium', 30) <= 320, `${s}: ${textWidth(s, 'medium', 30)} px`)
 })

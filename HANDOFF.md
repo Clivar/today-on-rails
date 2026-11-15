@@ -16,7 +16,7 @@ Where things stand and how to pick it up. Read README.md (what it is, how to bui
   - "get ready" Today card for events with a place; buzzes from the watch itself at start / 5 minutes
     left / get ready (confirmed on the wrist);
   - weather (system widget, hidden when the phone sends `no weather`), heart rate (fresh reading or
-    resting HR in grey), steps, battery, Voice Memo button.
+    resting HR in grey), steps, battery (the Voice Memo button was removed 2026-11-15).
 - Android app **Today On Rails 1.0.0** (`app.todayonrails`), release-signed, installed on the owner's phone:
   calendar selection, layout settings with drawings of each layout, nudges, weather (Open-Meteo, optional),
   battery-friendly sync. Three permissions, no dependencies, lint clean.

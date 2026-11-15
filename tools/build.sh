@@ -12,7 +12,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 TESTS="$ROOT/tools/test-builds"
 TEST="${1:-}"
 ZEUS=${ZEUS:-$ROOT/node_modules/.bin/zeus}
-[ -f "$ROOT/build/assets/images/rec.png" ] || node "$ROOT/tools/gen-assets.mjs" >/dev/null
+[ -f "$ROOT/build/assets/images/preview.png" ] || node "$ROOT/tools/gen-assets.mjs" >/dev/null
 
 P="$ROOT/watchface"
 if [ -n "$TEST" ]; then

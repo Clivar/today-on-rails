@@ -38,8 +38,8 @@ Three layouts, each with an always-on (dim) twin that keeps the clock and text i
 | Layout | When (configurable in the phone app) | Shows |
 |---|---|---|
 | clear | nothing coming up soon | big clock, "Free until 18:00 / tomorrow 09:00 / Monday 10:00 / 12 Nov", weather, heart rate, steps |
-| next | an event starts within *Show the next event from* (default 6 h), or one is on | smaller clock, "6:00 PM · IN 58 MIN" or "NOW · 25 MIN LEFT", the title, what else today, a lime arc to the event |
-| Today card | *while an event is on* (default on) and/or *before an event* (default 30 min) | the event large, its time span, the next two items |
+| next | an event starts within *Show the next event from* (default 6 h), or one is on | smaller clock, "6:00 PM · IN 58 MIN" (another day: "TOMORROW 7:00 AM · IN 11 H") or "NOW · 25 MIN LEFT", the title, what else that day, a lime arc to the event |
+| Today card | *while an event is on* (default on) and/or *before an event* (default 30 min) | the event large, its time span ("Tomorrow 12:30 AM" when it's on another day), the next two items ("Tomorrow 9:00 Dentist") |
 
 The rail shows the next 12 hours: calendar events as rings, reminders (events without duration) as
 dots, a white dot for now. A lime arc runs from now to the event once it is within the phone's
@@ -49,7 +49,7 @@ you can see at a glance. In an event's last 5 minutes the label says so in orang
 "WRAP IT UP · 4 MIN LEFT" (dimmed: "WRAP IT UP · UNTIL 10:30"), so the switch to what's next doesn't
 come as a surprise. The rail is made of system widgets (smooth, and the minute refresh moves only
 what changed); every mark keeps at least 4 px from the rounded screen edge, which clips what comes
-closer. The record button opens the watch's Voice Memo app.
+closer.
 
 **Heart rate** uses the watch's own background readings (their interval is set in Gadgetbridge → Heart
 rate monitoring), so the face adds no sensor use. A new reading shows immediately (`onLastChange`);
@@ -78,7 +78,7 @@ watchface/src/layouts/             one file per layout, per screen
   dim/   index.js  frame.js  clear.js  next.js  focus.js                                 always-on
 watchface/src/components/          one file per visual block; each gets its screen
   rail  dimRail  clock  dimClock  smallClock  date  battery  complications
-  recordButton  freeUntil  nextEvent  dimLine  todayCard  upNext  buzzer
+  freeUntil  nextEvent  dimLine  todayCard  upNext  buzzer
 watchface/src/data/
   agendaSource.js  where the agenda text comes from (the weather city name; test builds swap this file)
   agenda.js        parse the agenda text, choose the layout, labels, format times

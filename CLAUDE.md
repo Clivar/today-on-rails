@@ -104,8 +104,8 @@ emulation and gets the text back as the city name; the watchface reads `new Weat
   refreshing — a refresh with the same inputs as the last is skipped (`data/refresh.js` `refreshKey`,
   `createRedrawCheck`). Storage (`data/saved.js`) is for what must outlive an instance.
 - **Stacking:** widgets stack in creation order, so whatever is made later lies on top.
-  `layouts/lit/frame.js` fixes the order (background, rail, the first layout's frame parts and
-  widgets, record button); the rail's pools re-create the layers above one that grows (`components/rail.js`).
+  `layouts/lit/frame.js` fixes the order (background, rail, then each layout's frame parts and
+  widgets); the rail's pools re-create the layers above one that grows (`components/rail.js`).
 - The watch **vibrates from a watchface**: `new Vibrator().start({ mode: VIBRATOR_SCENE_NOTIFICATION })`
   (`@zos/sensor`), no permission. Works while lit and from the dim (AOD) instance (verified 2026-11-03).
 - `launchApp` from a watchface works (`SYSTEM_APP_VOICE_MEMO`, `native: true`); `launchApp` takes no params.

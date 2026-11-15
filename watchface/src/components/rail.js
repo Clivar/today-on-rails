@@ -32,10 +32,10 @@ import { railHour, railTarget, startsOnRail, formatTime } from '../data/agenda.j
 
 // Screen boxes the time label must not cover, per layout
 export const AVOID = {
-  // date row, complications row, record button
-  clock: [[36, 36, 356, 68], [36, 358, 288, 402], [290, 346, 360, 414]],
-  // Today card: small clock, the event block, the list, record button
-  card: [[36, 36, 160, 76], [36, 110, 356, 300], [36, 326, 288, 392], [290, 346, 360, 414]],
+  // date row, complications row
+  clock: [[36, 36, 356, 68], [36, 358, 288, 402]],
+  // Today card: small clock, the event block, the list (components/upNext.js RIGHT)
+  card: [[36, 36, 160, 76], [36, 110, 356, 300], [36, 326, 340, 392]],
 }
 
 const ELAPSED = 0x4a6b22 // dim lime: the part of an ongoing event that's behind you

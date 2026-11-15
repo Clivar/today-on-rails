@@ -12,8 +12,8 @@ import { createFocusLayout } from './focus.js'
 export function createLitLayouts(screen) {
   const frame = createFrame(screen) // background and rail now, under everything
   return {
-    clear: lazy(() => frame.layout(createClearLayout)),
-    next: lazy(() => frame.layout(createNextLayout)),
-    focus: lazy(() => frame.layout(createFocusLayout)),
+    clear: lazy(() => createClearLayout(screen, frame)),
+    next: lazy(() => createNextLayout(screen, frame)),
+    focus: lazy(() => createFocusLayout(screen, frame)),
   }
 }

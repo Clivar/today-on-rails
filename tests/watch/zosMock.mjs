@@ -3,7 +3,7 @@
 // sensor and storage calls. Used by buildCost.test.mjs.
 //
 // installZosMock() registers module hooks in this process (no fake packages in node_modules):
-// `import ui from '@zos/ui'` then gets this file's `ui`, and so on for app, sensor, storage, router.
+// `import ui from '@zos/ui'` then gets this file's `ui`, and so on for app, sensor and storage.
 // One mock per process (node --test runs each test file in its own process).
 import module from 'node:module'
 
@@ -121,7 +121,6 @@ function createMock() {
         removeItem: (key) => (bump(stats.storage, 'removeItem'), state.storage.delete(key)),
       },
     },
-    router: { launchApp: () => {}, SYSTEM_APP_VOICE_MEMO: 'VOICE_MEMO' },
   }
 
   // A new face instance (the watch rebuilds the face on every lit ↔ dim switch): new widgets and

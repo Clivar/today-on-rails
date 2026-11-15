@@ -1,6 +1,6 @@
 // Renders the watchface's images to PNG with headless Chromium, into build/assets/images/
 // (tools/build.sh copies them into the watchface): icons from the design boards, the always-on
-// digits, the temperature digits, the record button and the preview.
+// digits, the temperature digits and the preview.
 // Usage: node tools/gen-assets.mjs
 import fs from 'node:fs'
 import path from 'node:path'
@@ -20,8 +20,6 @@ fs.mkdirSync(TMP, { recursive: true })
 
 const MUTED = '#9EA39A'
 const TEXT = '#F3F5EF'
-const LIME = '#B6F35A'
-const ON_LIME = '#0A0D05'
 const AOD_DIGITS = '#A3A89F'
 const AOD_LIME = '#7FA83F'
 const AOD_MUTED = '#767A73'
@@ -64,7 +62,6 @@ const ICONS = {
   heartRest: '<path d="M2 16h6l1.5-3 1.5 3h11"/>' +
     '<path stroke-width="1.7" d="M13 4h4l-4 4.5h4"/><path stroke-width="1.5" d="M18.5 1.5h3L18.5 5h3"/>',
   steps: '<ellipse cx="8" cy="8.5" rx="3" ry="4.5"/><ellipse cx="16" cy="13.5" rx="3" ry="4.5"/><path d="M6.5 16.5h3M14.5 21.5h3"/>',
-  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/>',
 }
 for (const [name, icon, size] of [
   ['weather-21', 'weather', 21], ['weather-22', 'weather', 22],
@@ -72,11 +69,6 @@ for (const [name, icon, size] of [
   ['heart-rest-21', 'heartRest', 21], ['heart-rest-22', 'heartRest', 22],
 ]) shoot(name, size, size, svg(size, MUTED, 2, ICONS[icon]))
 
-// Record button: lime circle with the mic, plus a pressed state
-const recButton = (fill) =>
-  `<div style="width:56px;height:56px;border-radius:50%;background:${fill};display:flex;align-items:center;justify-content:center">${svg(26, ON_LIME, 2.2, ICONS.mic)}</div>`
-shoot('rec', 56, 56, recButton(LIME))
-shoot('rec-pressed', 56, 56, recButton('#8FC444'))
 
 // ── Always-on clocks (system-drawn IMG_TIME): one image set per clock ───────────
 // Digits in fixed-width slots (watchface/src/ui/clockSlots.js), exactly like the normal clocks.

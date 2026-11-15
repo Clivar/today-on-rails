@@ -181,7 +181,8 @@ export const hasWrapUp = (item) => item.kind === 'calendar' && item.endInMin - i
 export const isWrappingUp = (item) => !!item && item.ongoing && hasWrapUp(item) && item.endInMin <= WRAP_UP_MIN
 
 // The small upper-case line above an event's title (Today card and "next" layout):
-//   upcoming   "NEXT · IN 10 MIN", "GET READY · IN 58 MIN" (ready), "6:00 PM · IN 58 MIN" (timeFirst)
+//   upcoming   "NEXT · IN 10 MIN", "GET READY · IN 58 MIN" (ready), "6:00 PM · IN 58 MIN" (timeFirst;
+//              on another day "TOMORROW 7:00 AM · IN 11 H")
 //   ongoing    "NOW · 25 MIN LEFT", last minutes "WRAP IT UP · 4 MIN LEFT"
 //   fixedTimes "NEXT · 6:00 PM", "NOW · UNTIL 10:30", "WRAP IT UP · UNTIL 10:30" (the always-on card)
 // wrapUp: show it in the alert color.
@@ -193,7 +194,7 @@ export function eventLabel(subject, { is24 = false, ready = false, fixedTimes = 
     lead = wrapUp ? 'Wrap it up' : 'Now'
     rest = fixedTimes ? `until ${formatTime(subject.endHours, subject.endMinutes, is24)}` : formatLeft(subject.endInMin)
   } else {
-    lead = timeFirst ? formatTime(subject.hours, subject.minutes, is24) : ready ? 'Get ready' : 'Next'
+    lead = timeFirst ? formatWhen(subject, is24) : ready ? 'Get ready' : 'Next'
     rest = fixedTimes ? formatWhen(subject, is24) : formatIn(subject.inMin)
   }
   return { text: `${lead} · ${rest}`.toUpperCase(), wrapUp }
@@ -254,8 +255,10 @@ export function formatLeft(min) {
   return m === 0 ? `${h} h left` : `${h} h ${m} min left`
 }
 
-// "9:00 – 10:30 AM" (or just the start for reminders)
+// "9:00 – 10:30 AM" (or just the start for reminders); on another day just the start with the day,
+// "Tomorrow 12:30 AM" (the day and the span don't fit the Today card's line together)
 export function formatSpan(item, is24) {
+  if (!item.ongoing && item.daysAhead > 0) return formatWhen(item, is24)
   if (item.endHours === null) return formatTime(item.hours, item.minutes, is24)
   return `${formatTime(item.hours, item.minutes, is24, false)} – ${formatTime(item.endHours, item.endMinutes, is24)}`
 }

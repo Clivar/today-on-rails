@@ -1,5 +1,6 @@
 // The "next" layout's event block:
 //   upcoming: "6:00 PM · IN 58 MIN" / title / "+2 more today"
+//   tomorrow: "TOMORROW 7:00 AM · IN 11 H" / title / "Nothing else tomorrow"
 //   ongoing:  "NOW · 25 MIN LEFT" / title / "Until 10:30 · +2 more today"
 //   last 5 minutes: "WRAP IT UP · 4 MIN LEFT" in orange
 import { C, F } from '../ui/theme.js'
@@ -18,7 +19,8 @@ export function createNextEvent(screen) {
       when.set({ text: head.text, color: head.wrapUp ? C.alert : C.lime })
       title.setText(fitText(subject.title, 'bold', 34, 310))
       const n = moreSameDay(agenda, subject)
-      const rest = n ? `+${n} more ${subject.daysAhead === 0 ? 'today' : 'that day'}` : 'Nothing else today'
+      const day = subject.daysAhead <= 0 ? 'today' : subject.daysAhead === 1 ? 'tomorrow' : 'that day'
+      const rest = n ? `+${n} more ${day}` : `Nothing else ${day}`
       // The phone's updates have stopped: say so instead of "Nothing else today" (could be wrong then)
       const stale = staleNotice(agenda, now, is24)
       if (stale) return more.set({ text: stale, color: C.alert })
