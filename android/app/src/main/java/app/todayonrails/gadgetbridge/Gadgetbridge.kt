@@ -11,7 +11,8 @@ import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.util.zip.GZIPOutputStream
 
-// Talks to Gadgetbridge: finds the installed build and sends it a weather report.
+// Talks to Gadgetbridge: sends a weather report to every installed build (release and nightly can sit
+// side by side; whichever one is connected to the watch passes it on).
 // The agenda text goes in `location`; Gadgetbridge passes it to the watch as the city name.
 // Field names follow Gadgetbridge's GenericWeatherReceiver (Kelvin, OpenWeatherMap codes).
 object Gadgetbridge {
@@ -25,7 +26,7 @@ object Gadgetbridge {
         "com.espruino.gadgetbridge.banglejs",
     )
 
-    fun installedPackage(context: Context): String? = PACKAGES.firstOrNull {
+    fun installedPackages(context: Context): List<String> = PACKAGES.filter {
         try {
             context.packageManager.getPackageInfo(it, 0)
             true
@@ -34,9 +35,10 @@ object Gadgetbridge {
         }
     }
 
-    // Returns false when Gadgetbridge isn't installed
+    // Returns false when no Gadgetbridge is installed
     fun sendWeather(context: Context, location: String, latitude: Double, longitude: Double, forecast: OpenMeteo.Forecast?): Boolean {
-        val target = installedPackage(context) ?: return false
+        val targets = installedPackages(context)
+        if (targets.isEmpty()) return false
         val spec = JSONObject()
             .put("timestamp", System.currentTimeMillis() / 1000)
             .put("location", location)
@@ -47,7 +49,7 @@ object Gadgetbridge {
         val gz = ByteArrayOutputStream().also { out ->
             GZIPOutputStream(out).use { it.write(JSONArray().put(spec).toString().toByteArray()) }
         }.toByteArray()
-        context.sendBroadcast(Intent(ACTION).setPackage(target).putExtra("WeatherGz", gz))
+        targets.forEach { context.sendBroadcast(Intent(ACTION).setPackage(it).putExtra("WeatherGz", gz)) }
         return true
     }
 

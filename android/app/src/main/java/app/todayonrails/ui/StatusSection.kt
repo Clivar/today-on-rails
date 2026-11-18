@@ -32,7 +32,7 @@ class StatusSection(
 
     fun show() {
         val calendar = hasCalendarAccess()
-        val gadgetbridge = Gadgetbridge.installedPackage(activity) != null
+        val gadgetbridge = Gadgetbridge.installedPackages(activity).isNotEmpty()
         status.text = listOf(
             activity.getString(if (gadgetbridge) R.string.status_gadgetbridge_ok else R.string.status_gadgetbridge_missing),
             activity.getString(if (calendar) R.string.status_calendar_ok else R.string.status_calendar_missing),
